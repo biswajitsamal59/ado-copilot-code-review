@@ -1,0 +1,69 @@
+{
+    "$schema": "http://json.schemastore.org/vss-extension",
+    "manifestVersion": 1,
+    "id": "copilot-code-review",
+    "name": "Copilot Code Review",
+    "version": "1.0.0",
+    "publisher": "LittleFortSoftware",
+    "targets": [
+        {
+            "id": "Microsoft.VisualStudio.Services"
+        }
+    ],
+    "description": "Automated pull request code reviews powered by GitHub Copilot CLI. Get AI-driven feedback on your PRs directly in Azure DevOps.",
+    "categories": [
+        "Azure Pipelines"
+    ],
+    "tags": [
+        "code review",
+        "copilot",
+        "ai",
+        "pull request",
+        "automation",
+        "github copilot"
+    ],
+    "icons": {
+        "default": "images/extension-icon.png"
+    },
+    "content": {
+        "details": {
+            "path": "README.md"
+        }
+    },
+    "links": {
+        "repository": {
+            "uri": "https://github.com/little-fort/ado-copilot-code-review"
+        },
+        "issues": {
+            "uri": "https://github.com/little-fort/ado-copilot-code-review/issues"
+        },
+        "support": {
+            "uri": "https://github.com/little-fort/ado-copilot-code-review/issues"
+        }
+    },
+    "repository": {
+        "type": "git",
+        "uri": "https://github.com/little-fort/ado-copilot-code-review"
+    },
+    "branding": {
+        "color": "rgb(0, 122, 204)",
+        "theme": "dark"
+    },
+    "files": [
+        {
+            "path": "CopilotCodeReviewV1"
+        }
+    ],
+    "contributions": [
+        {
+            "id": "copilot-code-review-task",
+            "type": "ms.vss-distributed-task.task",
+            "targets": [
+                "ms.vss-distributed-task.tasks"
+            ],
+            "properties": {
+                "name": "CopilotCodeReviewV1"
+            }
+        }
+    ]
+}

@@ -1,0 +1,114 @@
+{
+    "$schema": "https://raw.githubusercontent.com/Microsoft/azure-pipelines-task-lib/master/tasks.schema.json",
+    "id": "5fe45e88-c466-4658-ad2f-f6735e8a601f",
+    "name": "CopilotCodeReview",
+    "friendlyName": "Copilot Code Review",
+    "description": "Perform automated code reviews on pull requests using the official GitHub Copilot CLI",
+    "helpMarkDown": "[Learn more about this task](https://github.com/little-fort/ado-copilot-code-review)",
+    "category": "Utility",
+    "author": "LittleFortSoftware",
+    "version": {
+        "Major": 1,
+        "Minor": 0,
+        "Patch": 0
+    },
+    "instanceNameFormat": "Copilot Code Review",
+    "demands": [
+        "powershell"
+    ],
+    "minimumAgentVersion": "2.182.1",
+    "inputs": [
+        {
+            "name": "githubPat",
+            "type": "string",
+            "label": "GitHub PAT",
+            "required": true,
+            "helpMarkDown": "Personal Access Token for GitHub with Copilot access. This token is used to authenticate with the GitHub Copilot CLI."
+        },
+        {
+            "name": "azureDevOpsPat",
+            "type": "string",
+            "label": "Azure DevOps PAT",
+            "required": true,
+            "helpMarkDown": "Personal Access Token for Azure DevOps. Used for retrieving pull request details and posting review comments."
+        },
+        {
+            "name": "organization",
+            "type": "string",
+            "label": "Organization",
+            "required": true,
+            "helpMarkDown": "The Azure DevOps organization name (e.g., 'myorg' from https://dev.azure.com/myorg)."
+        },
+        {
+            "name": "project",
+            "type": "string",
+            "label": "Project",
+            "required": true,
+            "helpMarkDown": "The Azure DevOps project name."
+        },
+        {
+            "name": "repository",
+            "type": "string",
+            "label": "Repository",
+            "required": true,
+            "helpMarkDown": "The repository name where the pull request exists."
+        },
+        {
+            "name": "pullRequestId",
+            "type": "string",
+            "label": "Pull Request ID",
+            "required": false,
+            "defaultValue": "",
+            "helpMarkDown": "The ID of the pull request to review. If not specified, defaults to $(System.PullRequest.PullRequestId) when run as part of a PR validation build."
+        },
+        {
+            "name": "timeout",
+            "type": "string",
+            "label": "Timeout (minutes)",
+            "required": false,
+            "defaultValue": "15",
+            "helpMarkDown": "The maximum number of minutes to allow the Copilot review to run before timing out. Default is 15 minutes."
+        },
+        {
+            "name": "model",
+            "type": "string",
+            "label": "Copilot Model",
+            "required": false,
+            "defaultValue": "",
+            "helpMarkDown": "Optional. The Copilot model to use for the review (e.g., 'gpt-4', 'claude-sonnet'). If not specified, uses the default model."
+        },
+        {
+            "name": "promptFile",
+            "type": "filePath",
+            "label": "Custom Prompt File",
+            "required": false,
+            "defaultValue": "",
+            "helpMarkDown": "Optional. Path to a .txt file containing a custom prompt for Copilot. The file must exist and contain content."
+        },
+        {
+            "name": "prompt",
+            "type": "multiLine",
+            "label": "Custom Prompt",
+            "required": false,
+            "defaultValue": "",
+            "helpMarkDown": "Optional. A custom prompt to pass directly to Copilot. If both prompt and promptFile are specified, prompt takes precedence.",
+            "properties": {
+                "rows": "10",
+                "maxLength": "5000"
+            }
+        }
+    ],
+    "execution": {
+        "Node20_1": {
+            "target": "index.js"
+        }
+    },
+    "restrictions": {
+        "commands": {
+            "mode": "restricted"
+        },
+        "settableVariables": {
+            "allowed": []
+        }
+    }
+}
