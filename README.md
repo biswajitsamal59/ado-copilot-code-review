@@ -3,7 +3,7 @@
 [![Azure DevOps Marketplace](https://img.shields.io/badge/Azure%20DevOps-Marketplace-blue)](https://marketplace.visualstudio.com/items?itemName=LittleFortSoftware.copilot-code-review)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Automated pull request code reviews powered by GitHub Copilot CLI. Get AI-driven feedback on your PRs directly in Azure DevOps.
+Automated pull request code reviews powered by the official GitHub Copilot CLI. Get AI-driven feedback on your PRs directly in Azure DevOps.
 
 ## Overview
 
@@ -25,7 +25,7 @@ Before using this extension, ensure you have:
   - Read pull requests
   - Write pull request comments
   - Read code
-- **Windows Agent**: This extension currently only supports Windows-based Azure DevOps agents
+- **Windows Agent**: This extension currently only supports Windows-based Azure DevOps agents. Compatible with both MS-hosted and self-hosted agents.
 
 ## Installation
 
@@ -45,29 +45,30 @@ trigger: none
 pr:
   branches:
     include:
-      - main
-      - develop
+    - main
+    - develop
 
 pool:
   vmImage: 'windows-latest'
 
 steps:
-  - checkout: self
-    fetchDepth: 0
+- checkout: self
+  fetchDepth: 0
+  persistCredentials: true  
 
-  - task: CopilotCodeReview@1
-    displayName: 'Copilot Code Review'
-    inputs:
-      githubPat: '$(GITHUB_PAT)'
-      azureDevOpsPat: '$(AZURE_DEVOPS_PAT)'
-      organization: 'your-org'
-      project: 'your-project'
-      repository: 'your-repo'
+- task: CopilotCodeReview@1
+  displayName: 'Copilot Code Review'
+  inputs:
+    githubPat: '$(GITHUB_PAT)'
+    azureDevOpsPat: '$(AZURE_DEVOPS_PAT)'
+    organization: 'your-org'
+    project: 'your-project'
+    repository: 'your-repo'
 ```
 
 ### With Custom Prompt
 
-You can customize the review prompt to focus on specific aspects:
+If the included prompt is not to your liking, you can customize the review prompt to focus on aspects tailed to your needs:
 
 ```yaml
 - task: CopilotCodeReview@1
@@ -88,7 +89,7 @@ You can customize the review prompt to focus on specific aspects:
 
 ### Using a Prompt File
 
-For longer prompts, use a file in your repository:
+For longer prompts, create a .txt file in your repository and pass the file path as a task input:
 
 ```yaml
 - task: CopilotCodeReview@1
@@ -104,7 +105,7 @@ For longer prompts, use a file in your repository:
 
 ### Manual Trigger for Specific PR
 
-Run a review on demand for a specific pull request:
+If you don't want to setup an automatic trigger, you can instead manually pass in a pull request ID to run reviews on demand:
 
 ```yaml
 parameters:
@@ -121,6 +122,7 @@ pool:
 steps:
   - checkout: self
     fetchDepth: 0
+    persistCredentials: true
 
   - task: CopilotCodeReview@1
     displayName: 'Copilot Code Review'
@@ -144,7 +146,7 @@ steps:
 | `repository` | Yes | - | Repository name |
 | `pullRequestId` | No | `$(System.PullRequest.PullRequestId)` | PR ID (auto-detected in PR builds) |
 | `timeout` | No | `15` | Timeout in minutes |
-| `model` | No | - | Copilot model to use (e.g., `gpt-4`, `claude-sonnet`) |
+| `model` | No | - | Preferred Copilot model to use (e.g., `gpt-5`, `claude-opus-4.5`) |
 | `promptFile` | No | - | Path to custom prompt file |
 | `prompt` | No | - | Inline custom prompt (overrides `promptFile`) |
 
@@ -153,18 +155,20 @@ steps:
 ### GitHub Personal Access Token
 
 1. Go to [GitHub Settings > Developer Settings > Personal Access Tokens](https://github.com/settings/tokens)
-2. Generate a new token (classic) with the following scopes:
-   - `copilot` - For Copilot CLI access
+2. Generate a new **Fine-grained** token with the following options:
+   - Repository access: Public
+   - Permission: Copilot Requests
 3. Store the token as a secret variable in your Azure DevOps pipeline
 
 ### Azure DevOps Personal Access Token
 
 1. Go to your Azure DevOps organization
 2. Click on **User Settings** > **Personal Access Tokens**
-3. Create a new token with the following scopes:
+3. Click on **New Token** and then **Show All Scopes**
+4. Create a new token with the following scopes:
    - **Code**: Read
    - **Pull Request Threads**: Read & Write
-4. Store the token as a secret variable in your Azure DevOps pipeline
+5. Store the token as a secret variable in your Azure DevOps pipeline
 
 ### Storing Tokens in Azure DevOps
 
@@ -174,6 +178,8 @@ steps:
    - `GITHUB_PAT` (mark as secret)
    - `AZURE_DEVOPS_PAT` (mark as secret)
 4. Link the variable group to your pipeline
+
+(Alternatively, create the pipeline first and then configure the pipeline-specific variables.)
 
 ## How It Works
 
@@ -197,7 +203,7 @@ The default prompt instructs Copilot to focus on:
 ## Limitations
 
 - **Windows Only**: Currently requires Windows-based agents
-- **GitHub Copilot CLI**: Requires the GitHub Copilot CLI to be installable via `winget`
+- **GitHub Copilot CLI**: Requires the GitHub Copilot CLI to be installable via `winget`. If using MS-hosted agents, this should be enabled by default.
 - **General Comments Only**: Posts general PR comments (file-level inline comments not yet supported)
 - **Context Window**: Very large PRs may exceed Copilot's context limits
 
@@ -211,6 +217,7 @@ Ensure your agent can access `winget` and has internet connectivity to install t
 
 Verify that:
 - Your GitHub PAT has Copilot access
+  - If your user account is part of a GitHub organization, ensure the organization admin goes to **GitHub Policies** > **Copilot** > **Copilot CLI** and sets the policy to **Enabled everywhere**
 - Your Azure DevOps PAT has Code (Read) and Pull Request Threads (Read & Write) permissions
 - Tokens are not expired
 
@@ -220,7 +227,7 @@ For large PRs, increase the `timeout` input value. The default is 15 minutes.
 
 ### No comments posted
 
-Check the pipeline logs for Copilot's analysis output. If Copilot found no issues, it will post a single positive comment.
+Check the pipeline logs for Copilot's analysis output and determine if the agent experienced connectivity issues when posting comments. Even if Copilot finds no issues, it should still post a single comment indicating as such.
 
 ## Contributing
 
