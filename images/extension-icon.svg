@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <rect width="128" height="128" rx="16" fill="#0078D4"/>
-  <text x="64" y="72" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="white" text-anchor="middle">CR</text>
-  <text x="64" y="100" font-family="Arial, sans-serif" font-size="12" fill="white" text-anchor="middle">Code Review</text>
-</svg>
