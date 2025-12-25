@@ -154,7 +154,7 @@ steps:
 
 As of December 2025, here are the model options supported by the GitHub Copilot CLI:
 
-- `claude-sonnet-4.5`
+- `claude-sonnet-4.5` (default)
 - `claude-haiku-4.5`
 - `claude-opus-4.5`
 - `claude-sonnet-4`
