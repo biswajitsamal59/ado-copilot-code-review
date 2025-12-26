@@ -60,8 +60,8 @@ steps:
     githubPat: '$(GITHUB_PAT)'
     azureDevOpsPat: '$(AZURE_DEVOPS_PAT)'
     organization: 'your-org'
-    project: 'your-project'
-    repository: 'your-repo'
+    project: '$(System.TeamProject)'
+    repository: '$(Build.Repository.Name)'
 ```
 
 ### With Custom Prompt
@@ -75,8 +75,8 @@ If the included prompt is not to your liking, you can customize the review promp
     githubPat: '$(GITHUB_PAT)'
     azureDevOpsPat: '$(AZURE_DEVOPS_PAT)'
     organization: 'your-org'
-    project: 'your-project'
-    repository: 'your-repo'
+    project: '$(System.TeamProject)'
+    repository: '$(Build.Repository.Name)'
     prompt: |
       Review this code focusing on:
       - Security vulnerabilities
@@ -94,8 +94,8 @@ For longer prompts, create a .txt file in your repository and pass the file path
     githubPat: '$(GITHUB_PAT)'
     azureDevOpsPat: '$(AZURE_DEVOPS_PAT)'
     organization: 'your-org'
-    project: 'your-project'
-    repository: 'your-repo'
+    project: '$(System.TeamProject)'
+    repository: '$(Build.Repository.Name)'
     promptFile: '$(Build.SourcesDirectory)/.copilot/review-prompt.txt'
 ```
 
@@ -127,8 +127,8 @@ steps:
       githubPat: '$(GITHUB_PAT)'
       azureDevOpsPat: '$(AZURE_DEVOPS_PAT)'
       organization: 'your-org'
-      project: 'your-project'
-      repository: 'your-repo'
+      project: '$(System.TeamProject)'
+      repository: '$(Build.Repository.Name)'
       pullRequestId: '${{ parameters.pullRequestId }}'
 ```
 
