@@ -30,7 +30,7 @@
     Writes the pull request changes to the specified file.
 
 .NOTES
-    Author: Rico Turman
+    Author: Little Fort Software
     Date: December 2025
     Requires: PowerShell 5.1 or later
 #>

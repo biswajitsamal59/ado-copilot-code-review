@@ -40,7 +40,7 @@
     Replies to an existing thread #456 on pull request #123.
 
 .NOTES
-    Author: Rico Turman
+    Author: Little Fort Software
     Date: December 2025
     Requires: PowerShell 5.1 or later
 #>

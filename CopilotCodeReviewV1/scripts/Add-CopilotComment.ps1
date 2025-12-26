@@ -14,7 +14,7 @@
     Creates a new comment thread.
 
 .NOTES
-    Author: Rico Turman
+    Author: Little Fort Software
     Date: December 2025
     Requires: PowerShell 5.1 or later
 #>
