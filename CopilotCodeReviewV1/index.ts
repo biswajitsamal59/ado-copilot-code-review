@@ -221,13 +221,15 @@ async function runCopilotCli(promptFilePath: string, model: string | undefined, 
     return new Promise((resolve, reject) => {
         // Build PowerShell command that reads prompt file and passes content to copilot CLI
         // This mirrors the original implementation: $prompt = Get-Content -Path "prompt.txt" -Raw; copilot -p $prompt ...
-        let copilotCmd = `copilot -p $prompt --allow-all-paths --allow-all-tools`;
+        let copilotCmd = `copilot -p "$prompt" --allow-all-paths --allow-all-tools --deny-tool 'shell(git push)'`;
         if (model) {
             copilotCmd += ` --model ${model}`;
         }
         
+        const printPrompt = `Write-Host ========== START PROMPT ==========; Write-Host $prompt; Write-Host ========== END PROMPT ==========;`;
         const envRefresh = `$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User");`
-        const psCommand = `$prompt = Get-Content -Path "${promptFilePath}" -Raw; ${envRefresh} ${copilotCmd}`;
+        const psCommand = `${envRefresh} $prompt = Get-Content -Path '${promptFilePath}' -Raw; ${printPrompt} ${copilotCmd}`;
+        //const psCommand = `${envRefresh} $prompt = 'Tell me about the code in this repo'; ${printPrompt} ${copilotCmd}`;
         console.log(`Running Powershell: ${psCommand}`);
         
         const envVars = { ...process.env };

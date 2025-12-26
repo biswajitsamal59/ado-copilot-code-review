@@ -96,6 +96,8 @@ For longer prompts, create a .txt file in your repository and pass the file path
     promptFile: '$(Build.SourcesDirectory)/.copilot/review-prompt.txt'
 ```
 
+**NOTE:** If using a custom prompt, avoid including any double quotation marks (") as this will cause errors when passing the input to the Copilot CLI.
+
 ### Manual Trigger for Specific PR
 
 If you don't want to setup an automatic trigger, you can instead manually pass in a pull request ID to run reviews on demand:
