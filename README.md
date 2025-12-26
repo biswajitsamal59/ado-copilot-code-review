@@ -15,6 +15,8 @@ This Azure DevOps extension provides a pipeline task that automatically reviews 
 
 This brings GitHub Copilot's code review capabilities to Azure DevOps, helping teams improve code quality through AI-assisted reviews.
 
+<img width="726" height="293" alt="ado-copilot-screen" src="https://github.com/user-attachments/assets/ab691f5c-bb80-4b22-b2f3-6d911ed03fc4" />
+
 ## Prerequisites
 
 Before using this extension, ensure you have:
