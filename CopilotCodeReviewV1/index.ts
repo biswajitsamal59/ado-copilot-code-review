@@ -96,8 +96,8 @@ async function run(): Promise<void> {
         // Step 4: Run Copilot CLI for code review
         console.log('\n[Step 4/4] Running Copilot code review...');
         
-        // Determine the prompt to use
-        let copilotPrompt: string;
+        // Determine the prompt file to use
+        let promptFilePath: string;
         let customPromptText: string | null = null;
         
         // Helper to check if promptFile is actually set (filePath inputs return working dir when empty)
@@ -124,30 +124,21 @@ async function run(): Promise<void> {
             // Use custom prompt template with placeholder replacement
             const customPromptTemplate = path.join(scriptsDir, 'prompt-custom.txt');
             const templateContent = fs.readFileSync(customPromptTemplate, 'utf8');
-            copilotPrompt = templateContent.replace('%CUSTOMPROMPT%', customPromptText);
+            const mergedPrompt = templateContent.replace('%CUSTOMPROMPT%', customPromptText);
+            
+            // Write merged prompt to a temp file in the working directory
+            promptFilePath = path.join(workingDirectory, '_copilot_prompt.txt');
+            fs.writeFileSync(promptFilePath, mergedPrompt, 'utf8');
             console.log('Custom prompt merged with instruction template.');
         } else {
             // Use default prompt file bundled with the task
-            const defaultPromptFile = path.join(scriptsDir, 'prompt.txt');
+            promptFilePath = path.join(scriptsDir, 'prompt.txt');
             console.log('Using default prompt.');
-            copilotPrompt = fs.readFileSync(defaultPromptFile, 'utf8');
-        }
-
-        // Build copilot command arguments
-        const copilotArgs: string[] = [
-            '-p', `"${copilotPrompt.replace(/"/g, '\\"')}"`,
-            '--allow-all-paths',
-            '--allow-all-tools'
-        ];
-
-        // Add model if specified
-        if (model) {
-            copilotArgs.push('--model', model);
         }
 
         // Run Copilot CLI with timeout
         const timeoutMs = timeoutMinutes * 60 * 1000;
-        await runCopilotCli(copilotArgs, workingDirectory, timeoutMs);
+        await runCopilotCli(promptFilePath, model, workingDirectory, timeoutMs);
 
         console.log('\n' + '='.repeat(60));
         console.log('Copilot Code Review completed successfully!');
@@ -225,18 +216,30 @@ async function runPowerShellScript(scriptPath: string, args: string[]): Promise<
     });
 }
 
-async function runCopilotCli(args: string[], workingDirectory: string, timeoutMs: number): Promise<void> {
+async function runCopilotCli(promptFilePath: string, model: string | undefined, workingDirectory: string, timeoutMs: number): Promise<void> {
     return new Promise((resolve, reject) => {
-        const command = `copilot ${args.join(' ')}`;
-        console.log(`Running: copilot [prompt] --allow-all-paths --allow-all-tools${args.includes('--model') ? ' --model ' + args[args.indexOf('--model') + 1] : ''}`);
+        // Build PowerShell command that reads prompt file and passes content to copilot CLI
+        // This mirrors the original implementation: $prompt = Get-Content -Path "prompt.txt" -Raw; copilot -p $prompt ...
+        let copilotCmd = `copilot -p $prompt --allow-all-paths --allow-all-tools`;
+        if (model) {
+            copilotCmd += ` --model ${model}`;
+        }
+        
+        const psCommand = `$prompt = Get-Content -Path "${promptFilePath}" -Raw; ${copilotCmd}`;
+        console.log(`Running: copilot -p [prompt content] --allow-all-paths --allow-all-tools${model ? ' --model ' + model : ''}`);
+        
         const envVars = { ...process.env };
         
-        const copilotProcess = child_process.spawn(command, [], {
-            shell: true,
-            stdio: 'inherit',
-            cwd: workingDirectory,
-            env: envVars
-        });
+        const copilotProcess = child_process.spawn(
+            'powershell.exe',
+            ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', psCommand],
+            {
+                shell: false,
+                stdio: 'inherit',
+                cwd: workingDirectory,
+                env: envVars
+            }
+        );
 
         // Set up timeout
         const timeoutId = setTimeout(() => {
