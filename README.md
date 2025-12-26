@@ -54,7 +54,6 @@ pool:
 steps:
 - checkout: self
   fetchDepth: 0
-  persistCredentials: true  
 
 - task: CopilotCodeReview@1
   displayName: 'Copilot Code Review'
@@ -122,7 +121,6 @@ pool:
 steps:
   - checkout: self
     fetchDepth: 0
-    persistCredentials: true
 
   - task: CopilotCodeReview@1
     displayName: 'Copilot Code Review'
