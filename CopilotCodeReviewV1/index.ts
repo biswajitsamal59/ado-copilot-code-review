@@ -108,6 +108,10 @@ async function run(): Promise<void> {
         if (prompt) {
             // Direct prompt input takes precedence
             console.log('Using custom prompt from input.');
+            if (prompt.includes('"')) {
+                tl.setResult(tl.TaskResult.Failed, 'Custom prompts cannot include double quotes ("). Please remove any double quotes from your prompt input.');
+                return;
+            }
             customPromptText = prompt;
         } else if (isPromptFileSet) {
             // Read from prompt file
@@ -115,6 +119,10 @@ async function run(): Promise<void> {
             const fileContent = fs.readFileSync(promptFile, 'utf8').trim();
             if (!fileContent) {
                 tl.setResult(tl.TaskResult.Failed, `Prompt file is empty: ${promptFile}`);
+                return;
+            }
+            if (fileContent.includes('"')) {
+                tl.setResult(tl.TaskResult.Failed, `Custom prompts cannot include double quotes ("). Please remove any double quotes from the prompt file: ${promptFile}`);
                 return;
             }
             customPromptText = fileContent;
