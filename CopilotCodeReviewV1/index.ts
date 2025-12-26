@@ -194,13 +194,13 @@ async function runPowerShellScript(scriptPath: string, args: string[]): Promise<
     return new Promise((resolve, reject) => {
         const command = `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}" ${args.join(' ')}`;
         
-        const process = child_process.spawn(command, [], {
+        const psProcess = child_process.spawn(command, [], {
             shell: true,
             stdio: 'inherit',
             env: { ...process.env }
         });
 
-        process.on('close', (code) => {
+        psProcess.on('close', (code) => {
             if (code === 0) {
                 resolve();
             } else {
@@ -208,7 +208,7 @@ async function runPowerShellScript(scriptPath: string, args: string[]): Promise<
             }
         });
 
-        process.on('error', (err) => {
+        psProcess.on('error', (err) => {
             reject(new Error(`Failed to run PowerShell script: ${err.message}`));
         });
     });
