@@ -125,6 +125,7 @@ async function run(): Promise<void> {
             const customPromptTemplate = path.join(scriptsDir, 'prompt-custom.txt');
             const templateContent = fs.readFileSync(customPromptTemplate, 'utf8');
             const mergedPrompt = templateContent.replace('%CUSTOMPROMPT%', customPromptText);
+            console.log('\nCUSTOM PROMPT:\n' + mergedPrompt + '\n\n');
             
             // Write merged prompt to a temp file in the working directory
             promptFilePath = path.join(workingDirectory, '_copilot_prompt.txt');
