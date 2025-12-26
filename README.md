@@ -40,7 +40,7 @@ Before using this extension, ensure you have:
 
 ### Basic Usage
 
-Add the task to your pipeline YAML:
+Add the task to a new or existing pipeline with a PR trigger:
 
 ```yaml
 pr:
