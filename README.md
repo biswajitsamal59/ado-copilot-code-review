@@ -59,9 +59,6 @@ steps:
   inputs:
     githubPat: '$(GITHUB_PAT)'
     azureDevOpsPat: '$(AZURE_DEVOPS_PAT)'
-    organization: 'your-org'
-    project: '$(System.TeamProject)'
-    repository: '$(Build.Repository.Name)'
 ```
 
 ### With Custom Prompt
@@ -74,9 +71,6 @@ If the included prompt is not to your liking, you can customize the review promp
   inputs:
     githubPat: '$(GITHUB_PAT)'
     azureDevOpsPat: '$(AZURE_DEVOPS_PAT)'
-    organization: 'your-org'
-    project: '$(System.TeamProject)'
-    repository: '$(Build.Repository.Name)'
     prompt: |
       Review this code focusing on:
       - Security vulnerabilities
@@ -93,9 +87,6 @@ For longer prompts, create a .txt file in your repository and pass the file path
   inputs:
     githubPat: '$(GITHUB_PAT)'
     azureDevOpsPat: '$(AZURE_DEVOPS_PAT)'
-    organization: 'your-org'
-    project: '$(System.TeamProject)'
-    repository: '$(Build.Repository.Name)'
     promptFile: '$(Build.SourcesDirectory)/.copilot/review-prompt.txt'
 ```
 
@@ -126,9 +117,6 @@ steps:
     inputs:
       githubPat: '$(GITHUB_PAT)'
       azureDevOpsPat: '$(AZURE_DEVOPS_PAT)'
-      organization: 'your-org'
-      project: '$(System.TeamProject)'
-      repository: '$(Build.Repository.Name)'
       pullRequestId: '${{ parameters.pullRequestId }}'
 ```
 
@@ -138,9 +126,9 @@ steps:
 |-------|----------|---------|-------------|
 | `githubPat` | Yes | - | GitHub Personal Access Token with Copilot access |
 | `azureDevOpsPat` | Yes | - | Azure DevOps PAT for API access |
-| `organization` | Yes | - | Azure DevOps organization name |
-| `project` | Yes | - | Azure DevOps project name |
-| `repository` | Yes | - | Repository name |
+| `organization` | No | `$(System.CollectionUri)` (inferred) | Azure DevOps organization name |
+| `project` | No | `$(System.TeamProject)` | Azure DevOps project name |
+| `repository` | No | `$(Build.Repository.Name)` | Repository name |
 | `pullRequestId` | No | `$(System.PullRequest.PullRequestId)` | PR ID (auto-detected in PR builds) |
 | `timeout` | No | `15` | Timeout in minutes |
 | `model` | No | - | Preferred Copilot model to use (see valid options below) |

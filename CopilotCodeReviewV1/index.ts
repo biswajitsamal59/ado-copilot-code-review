@@ -8,9 +8,43 @@ async function run(): Promise<void> {
         // Get required inputs
         const githubPat = tl.getInputRequired('githubPat');
         const azureDevOpsPat = tl.getInputRequired('azureDevOpsPat');
-        const organization = tl.getInputRequired('organization');
-        const project = tl.getInputRequired('project');
-        const repository = tl.getInputRequired('repository');
+        
+        // Get inputs with defaults from pipeline variables
+        let organization = tl.getInput('organization');
+        let project = tl.getInput('project');
+        let repository = tl.getInput('repository');
+
+        // Auto-detect organization from System.CollectionUri if not provided
+        // CollectionUri format: https://dev.azure.com/orgname/ or https://orgname.visualstudio.com/
+        if (!organization) {
+            const collectionUri = tl.getVariable('System.CollectionUri');
+            if (collectionUri) {
+                const devAzureMatch = collectionUri.match(/https:\/\/dev\.azure\.com\/([^\/]+)/);
+                const vstsMatch = collectionUri.match(/https:\/\/([^\.]+)\.visualstudio\.com/);
+                if (devAzureMatch) {
+                    organization = devAzureMatch[1];
+                    console.log(`Auto-detected organization from CollectionUri: ${organization}`);
+                } else if (vstsMatch) {
+                    organization = vstsMatch[1];
+                    console.log(`Auto-detected organization from CollectionUri: ${organization}`);
+                }
+            }
+        }
+
+        if (!organization) {
+            tl.setResult(tl.TaskResult.Failed, 'Organization is required. Either provide it as an input or ensure System.CollectionUri is available.');
+            return;
+        }
+
+        if (!project) {
+            tl.setResult(tl.TaskResult.Failed, 'Project is required. Either provide it as an input or ensure System.TeamProject is available.');
+            return;
+        }
+
+        if (!repository) {
+            tl.setResult(tl.TaskResult.Failed, 'Repository is required. Either provide it as an input or ensure Build.Repository.Name is available.');
+            return;
+        }
 
         // Get optional inputs
         let pullRequestId = tl.getInput('pullRequestId');

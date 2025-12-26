@@ -10,7 +10,7 @@
     "version": {
         "Major": 1,
         "Minor": 0,
-        "Patch": 21
+        "Patch": 22
     },
     "instanceNameFormat": "Copilot Code Review",
     "demands": [
@@ -36,22 +36,25 @@
             "name": "organization",
             "type": "string",
             "label": "Organization",
-            "required": true,
-            "helpMarkDown": "The Azure DevOps organization name (e.g., 'myorg' from https://dev.azure.com/myorg)."
+            "required": false,
+            "defaultValue": "",
+            "helpMarkDown": "The Azure DevOps organization name (e.g., 'myorg' from https://dev.azure.com/myorg). If not specified, will be automatically detected from the pipeline context."
         },
         {
             "name": "project",
             "type": "string",
             "label": "Project",
-            "required": true,
-            "helpMarkDown": "The Azure DevOps project name."
+            "required": false,
+            "defaultValue": "$(System.TeamProject)",
+            "helpMarkDown": "The Azure DevOps project name. Defaults to $(System.TeamProject)."
         },
         {
             "name": "repository",
             "type": "string",
             "label": "Repository",
-            "required": true,
-            "helpMarkDown": "The repository name where the pull request exists."
+            "required": false,
+            "defaultValue": "$(Build.Repository.Name)",
+            "helpMarkDown": "The repository name where the pull request exists. Defaults to $(Build.Repository.Name)."
         },
         {
             "name": "pullRequestId",
