@@ -96,7 +96,7 @@ For longer prompts, create a .txt file in your repository and pass the file path
     promptFile: '$(Build.SourcesDirectory)/.copilot/review-prompt.txt'
 ```
 
-**NOTE:** If using a custom prompt, avoid including any double quotation marks (") as this will cause errors when passing the input to the Copilot CLI.
+**NOTE:** If using a custom prompt, avoid including any double quotation marks (") as this will cause errors when passing the input to the Copilot CLI. Single quotes (') can be used instead and should not cause any issues.
 
 ### Manual Trigger for Specific PR
 
