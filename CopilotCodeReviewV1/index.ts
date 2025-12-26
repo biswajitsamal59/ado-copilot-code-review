@@ -203,11 +203,12 @@ async function installCopilotCli(): Promise<void> {
 async function runPowerShellScript(scriptPath: string, args: string[]): Promise<void> {
     return new Promise((resolve, reject) => {
         const command = `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}" ${args.join(' ')}`;
+        const envVars = { ...process.env };
         
         const psProcess = child_process.spawn(command, [], {
             shell: true,
             stdio: 'inherit',
-            env: { ...process.env }
+            env: envVars
         });
 
         psProcess.on('close', (code) => {
@@ -228,12 +229,13 @@ async function runCopilotCli(args: string[], workingDirectory: string, timeoutMs
     return new Promise((resolve, reject) => {
         const command = `copilot ${args.join(' ')}`;
         console.log(`Running: copilot [prompt] --allow-all-paths --allow-all-tools${args.includes('--model') ? ' --model ' + args[args.indexOf('--model') + 1] : ''}`);
+        const envVars = { ...process.env };
         
         const copilotProcess = child_process.spawn(command, [], {
             shell: true,
             stdio: 'inherit',
             cwd: workingDirectory,
-            env: { ...process.env }
+            env: envVars
         });
 
         // Set up timeout
