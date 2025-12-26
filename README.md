@@ -25,6 +25,7 @@ Before using this extension, ensure you have:
   - Read pull requests
   - Write pull request comments
   - Read code
+  - NOTE: Since this PAT will be used by Copilot to post comments, all PR comments will be attributed to the account used to create the PAT. For large teams, consider using a PAT from a dedicated service account to avoid confusion. 
 - **Windows Agent**: This extension currently only supports Windows-based Azure DevOps agents. Compatible with both MS-hosted and self-hosted agents.
 
 ## Installation
