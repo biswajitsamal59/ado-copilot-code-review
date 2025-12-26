@@ -98,11 +98,12 @@ async function run(): Promise<void> {
         
         // Determine the prompt to use
         let copilotPrompt: string;
+        let customPromptText: string | null = null;
         
         if (prompt) {
             // Direct prompt input takes precedence
             console.log('Using custom prompt from input.');
-            copilotPrompt = prompt;
+            customPromptText = prompt;
         } else if (promptFile) {
             // Read from prompt file
             console.log(`Using custom prompt from file: ${promptFile}`);
@@ -115,7 +116,15 @@ async function run(): Promise<void> {
                 tl.setResult(tl.TaskResult.Failed, `Prompt file is empty: ${promptFile}`);
                 return;
             }
-            copilotPrompt = fileContent;
+            customPromptText = fileContent;
+        }
+
+        if (customPromptText) {
+            // Use custom prompt template with placeholder replacement
+            const customPromptTemplate = path.join(scriptsDir, 'prompt-custom.txt');
+            const templateContent = fs.readFileSync(customPromptTemplate, 'utf8');
+            copilotPrompt = templateContent.replace('%CUSTOMPROMPT%', customPromptText);
+            console.log('Custom prompt merged with instruction template.');
         } else {
             // Use default prompt file bundled with the task
             const defaultPromptFile = path.join(scriptsDir, 'prompt.txt');
