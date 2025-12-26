@@ -67,7 +67,7 @@ steps:
 
 ### With Custom Prompt
 
-If the included prompt is not to your liking, you can customize the review prompt to focus on aspects tailed to your needs:
+If the included prompt is not to your liking, you can customize the review prompt to focus on aspects tailored to your needs:
 
 ```yaml
 - task: CopilotCodeReview@1
