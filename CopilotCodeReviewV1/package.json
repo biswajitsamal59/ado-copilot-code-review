@@ -1,6 +1,6 @@
 {
     "name": "copilot-code-review-task",
-    "version": "1.0.0",
+    "version": "1.0.5",
     "description": "Azure DevOps pipeline task for automated code reviews using GitHub Copilot",
     "main": "index.js",
     "scripts": {
@@ -21,7 +21,8 @@
     "author": "LittleFortSoftware",
     "license": "MIT",
     "dependencies": {
-        "azure-pipelines-task-lib": "^4.17.3"
+        "azure-pipelines-task-lib": "^4.17.3",
+        "production": "^0.0.2"
     },
     "devDependencies": {
         "@types/node": "^20.10.0",
