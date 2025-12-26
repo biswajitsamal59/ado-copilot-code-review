@@ -228,7 +228,7 @@ async function runCopilotCli(promptFilePath: string, model: string | undefined, 
         
         const envRefresh = `$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User");`
         const psCommand = `$prompt = Get-Content -Path "${promptFilePath}" -Raw; ${envRefresh} ${copilotCmd}`;
-        console.log(`Running: copilot -p [prompt content] --allow-all-paths --allow-all-tools${model ? ' --model ' + model : ''}`);
+        console.log(`Running Powershell: ${psCommand}`);
         
         const envVars = { ...process.env };
         
