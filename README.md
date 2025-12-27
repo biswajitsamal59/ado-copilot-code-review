@@ -40,12 +40,10 @@ Before using this extension, ensure you have:
 
 ### Basic Usage
 
-Add the task to a new or existing pipeline with a PR trigger:
+Create a dedicated pipeline with the `CopilotCodeReview@1` task:
 
 ```yaml
-pr:
-- main
-- develop
+trigger: none
 
 pool:
   vmImage: 'windows-latest'
@@ -60,6 +58,10 @@ steps:
     githubPat: '$(GITHUB_PAT)'
     azureDevOpsPat: '$(AZURE_DEVOPS_PAT)'
 ```
+
+Use branch policies on your protected branches to specify the pipeline as a build validation that must finish before the PR can be completed:
+
+
 
 ### With Custom Prompt
 
