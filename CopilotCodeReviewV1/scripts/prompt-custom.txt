@@ -10,6 +10,6 @@ This information along with git commands and the local copy of the repository wi
 
 Be aware that you are operating in an Azure Pipelines context and so permissions restrictions over network or file access may occur. If you encounter conditions blocking you from performing the outlined steps, you do not need to persist indefinitely—you may simply print any suggestions to the console log and end the run.
 
-The rest of this prompt is provided by the developer requesting this pull request and should provide more direction for how it should be performed:
+The rest of this prompt is provided by the DevOps admin overseeing this pull request and should provide more direction for how it should be performed:
 
 %CUSTOMPROMPT%
