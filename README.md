@@ -136,6 +136,7 @@ steps:
 | `model` | No | - | Preferred Copilot model to use (see valid options below) |
 | `promptFile` | No | - | Path to custom prompt file |
 | `prompt` | No | - | Inline custom prompt (overrides `promptFile`) |
+| `authors` | No | - | Comma-separated list of email addresses to filter reviews (see below) |
 
 ### Copilot Models
 
@@ -145,7 +146,6 @@ As of December 2025, here are the model options supported by the GitHub Copilot 
 - `claude-haiku-4.5`
 - `claude-opus-4.5`
 - `claude-sonnet-4`
-- `gpt-5.2`
 - `gpt-5.1-codex-max`
 - `gpt-5.1-codex`
 - `gpt-5.1-codex-mini`
@@ -154,6 +154,29 @@ As of December 2025, here are the model options supported by the GitHub Copilot 
 - `gpt-5-mini`
 - `gpt-4.1`
 - `gemini-3-pro-preview`
+
+### Author Filtering
+
+Use the `authors` input to limit code reviews to PRs created by specific users. This is useful when you want to:
+
+- Only review code from certain team members (e.g., junior developers)
+- Exclude automated bot PRs from review
+- Limit Copilot usage to a subset of contributors
+
+```yaml
+- task: CopilotCodeReview@1
+  displayName: 'Copilot Code Review'
+  inputs:
+    githubPat: '$(GITHUB_PAT)'
+    azureDevOpsPat: '$(AZURE_DEVOPS_PAT)'
+    authors: 'alice@example.com, bob@example.com, charlie@example.com'
+```
+
+When configured:
+- The task compares `$(Build.RequestedForEmail)` against the provided email list
+- If the PR author's email matches any in the list, the review proceeds normally
+- If no match is found, the task completes successfully without running the code review
+- Email comparison is case-insensitive
 
 ## Setting Up Tokens
 

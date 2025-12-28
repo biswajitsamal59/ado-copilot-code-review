@@ -5,6 +5,32 @@ import * as child_process from 'child_process';
 
 async function run(): Promise<void> {
     try {
+        // Check author filter first (before any other processing)
+        const authors = tl.getInput('authors');
+        if (authors) {
+            const requestedForEmail = tl.getVariable('Build.RequestedForEmail') || '';
+            const authorList = authors.split(',').map(email => email.trim().toLowerCase());
+            const currentAuthor = requestedForEmail.toLowerCase();
+            
+            console.log('='.repeat(60));
+            console.log('Author Filter Check');
+            console.log('='.repeat(60));
+            console.log(`Configured authors: ${authorList.join(', ')}`);
+            console.log(`PR author email: ${requestedForEmail || '(not available)'}`);
+            
+            if (!authorList.includes(currentAuthor)) {
+                console.log(`Result: PR author is NOT in the configured authors list.`);
+                console.log('Skipping code review for this PR.');
+                console.log('='.repeat(60));
+                tl.setResult(tl.TaskResult.Succeeded, 'Skipped: PR author not in configured authors list.');
+                return;
+            }
+            
+            console.log(`Result: PR author IS in the configured authors list.`);
+            console.log('Proceeding with code review.');
+            console.log('='.repeat(60));
+        }
+
         // Get required inputs
         const githubPat = tl.getInputRequired('githubPat');
         const azureDevOpsPat = tl.getInputRequired('azureDevOpsPat');
