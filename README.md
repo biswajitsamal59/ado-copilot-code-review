@@ -32,7 +32,7 @@ Before using this extension, ensure you have:
 
 ## Installation
 
-1. Install the extension from the [Azure DevOps Marketplace](https://marketplace.visualstudio.com/items?itemName=LittleFortSoftware.copilot-code-review)
+1. Install the extension from the [Azure DevOps Marketplace](https://marketplace.visualstudio.com/items?itemName=LittleFortSoftware.ado-copilot-code-review)
 2. Navigate to your Azure DevOps organization settings
 3. Go to **Extensions** and verify the extension is installed
 
