@@ -207,7 +207,7 @@ When configured:
 
 ### Option 1: System Access Token (Recommended)
 
-The System Access Token is the Microsoft-recommended authentication method for Azure DevOps Services. It uses OAuth and requires no PAT management.
+The system access token is the [Microsoft-recommended](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/access-tokens?view=azure-devops&tabs=yaml) authentication method for Azure DevOps Services. It uses OAuth and requires no PAT management.
 
 #### Granting Build Service Permissions
 
@@ -300,15 +300,15 @@ Verify that:
   - The Build Service identity has **"Contribute to pull requests"** permission on the repository
   - Try explicitly mapping the `SYSTEM_ACCESSTOKEN` environment variable:
 
-  ```yaml
-  - task: CopilotCodeReview@1
-    displayName: 'Copilot Code Review'
-    inputs:
-      githubPat: '$(GITHUB_PAT)'
-      useSystemAccessToken: true
-    env:
-      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-  ```
+```yaml
+- task: CopilotCodeReview@1
+  displayName: 'Copilot Code Review'
+  inputs:
+    githubPat: '$(GITHUB_PAT)'
+    useSystemAccessToken: true
+  env:
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+```
 
 ### Timeout errors
 
