@@ -26,7 +26,10 @@ Before using this extension, ensure you have:
 - **Azure DevOps Authentication** (one of the following):
   - **System Access Token (Recommended)**: Use the pipeline's built-in OAuth token for Azure DevOps Services. Must grant permissions to Build Service Identity (see below).
   - **Personal Access Token**: Required for Azure DevOps Server (on-prem) or if you prefer explicit token management. Needs permissions to read pull requests, write comments, and read code.
-- **Windows Agent**: This extension currently only supports Windows-based Azure DevOps agents. Compatible with both MS-hosted and self-hosted agents.
+- **PowerShell 7+**: This extension requires PowerShell 7 or later (`pwsh`) to be installed on the agent. PowerShell 7 is pre-installed on Microsoft-hosted agents.
+- **Node.js 22+ (Linux only)**: On Linux agents, Node.js 22 or later is required for installing the GitHub Copilot CLI via npm.
+
+> **Platform Support**: This extension supports both Windows and Linux Azure DevOps agents. Compatible with MS-hosted and self-hosted agents.
 
 ## Installation
 
@@ -44,7 +47,7 @@ The recommended approach for Azure DevOps Services uses the pipeline's built-in 
 trigger: none
 
 pool:
-  vmImage: 'windows-latest'
+  vmImage: 'ubuntu-latest'  # or 'windows-latest'
 
 steps:
 - checkout: self
@@ -67,7 +70,7 @@ For Azure DevOps Server (on-prem) or if you prefer explicit token management:
 trigger: none
 
 pool:
-  vmImage: 'windows-latest'
+  vmImage: 'ubuntu-latest'  # or 'windows-latest'
 
 steps:
 - checkout: self
@@ -131,7 +134,7 @@ parameters:
 trigger: none
 
 pool:
-  vmImage: 'windows-latest'
+  vmImage: 'ubuntu-latest'  # or 'windows-latest'
 
 steps:
   - checkout: self

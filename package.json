@@ -6,7 +6,7 @@
         "build": "cd CopilotCodeReviewV1 && npm run build",
         "build:dev": "cd CopilotCodeReviewV1 && npm run build",
         "package:prod": "tfx extension create --manifest-globs vss-extension.json",
-        "package:dev": "powershell -ExecutionPolicy Bypass -File build-dev.ps1"
+        "package:dev": "pwsh -File build-dev.ps1"
     },
     "repository": {
         "type": "git",

@@ -2,9 +2,67 @@ import * as tl from 'azure-pipelines-task-lib/task';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as child_process from 'child_process';
+import * as os from 'os';
+
+/**
+ * Check if PowerShell 7 (pwsh) is available on the system
+ */
+function checkPwshAvailable(): boolean {
+    try {
+        const result = child_process.spawnSync('pwsh', ['--version'], {
+            encoding: 'utf8',
+            shell: true
+        });
+        return result.status === 0;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Get the installed Node.js major version
+ */
+function getNodeMajorVersion(): number {
+    const version = process.version; // e.g., 'v22.1.0'
+    const match = version.match(/^v(\d+)/);
+    return match ? parseInt(match[1], 10) : 0;
+}
+
+/**
+ * Check if we're running on Windows
+ */
+function isWindows(): boolean {
+    return process.platform === 'win32';
+}
 
 async function run(): Promise<void> {
     try {
+        // Check prerequisites first
+        console.log('Checking prerequisites...');
+        
+        // Check if PowerShell 7 (pwsh) is available
+        if (!checkPwshAvailable()) {
+            tl.setResult(tl.TaskResult.Failed, 
+                'PowerShell 7 (pwsh) is required but not found. ' +
+                'Please install PowerShell 7 or later. ' +
+                'Visit https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell for installation instructions.');
+            return;
+        }
+        console.log('PowerShell 7 (pwsh) is available.');
+
+        // On Linux, check Node.js version (required for npm-based Copilot CLI installation)
+        if (!isWindows()) {
+            const nodeVersion = getNodeMajorVersion();
+            if (nodeVersion < 22) {
+                tl.setResult(tl.TaskResult.Failed, 
+                    `Node.js 22 or later is required on Linux for GitHub Copilot CLI installation. ` +
+                    `Current version: ${process.version}. ` +
+                    `Please upgrade Node.js to version 22 or later.`);
+                return;
+            }
+            console.log(`Node.js version ${process.version} meets requirements.`);
+        }
+
         // Check author filter first (before any other processing)
         const authors = tl.getInput('authors');
         if (authors) {
@@ -278,11 +336,22 @@ async function checkCopilotCli(): Promise<boolean> {
 
 async function installCopilotCli(): Promise<void> {
     return new Promise((resolve, reject) => {
-        console.log('Installing GitHub Copilot CLI via winget...');
+        let command: string;
+        let args: string[];
+
+        if (isWindows()) {
+            console.log('Installing GitHub Copilot CLI via winget...');
+            command = 'winget';
+            args = ['install', 'GitHub.Copilot', '--silent', '--accept-package-agreements', '--accept-source-agreements'];
+        } else {
+            console.log('Installing GitHub Copilot CLI via npm...');
+            command = 'npm';
+            args = ['install', '-g', '@github/copilot'];
+        }
         
         const installProcess = child_process.spawn(
-            'winget',
-            ['install', 'GitHub.Copilot', '--silent', '--accept-package-agreements', '--accept-source-agreements'],
+            command,
+            args,
             {
                 shell: true,
                 stdio: 'inherit'
@@ -306,7 +375,7 @@ async function installCopilotCli(): Promise<void> {
 
 async function runPowerShellScript(scriptPath: string, args: string[]): Promise<void> {
     return new Promise((resolve, reject) => {
-        const command = `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}" ${args.join(' ')}`;
+        const command = `pwsh -NoProfile -File "${scriptPath}" ${args.join(' ')}`;
         const envVars = { ...process.env };
         
         const psProcess = child_process.spawn(command, [], {
@@ -341,14 +410,13 @@ async function runCopilotCli(promptFilePath: string, model: string | undefined, 
         const printPrompt = `Write-Host ========== START PROMPT ==========; Write-Host $prompt; Write-Host ========== END PROMPT ==========;`;
         const envRefresh = `$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User");`
         const psCommand = `${envRefresh} $prompt = Get-Content -Path '${promptFilePath}' -Raw; ${printPrompt} ${copilotCmd}`;
-        //const psCommand = `${envRefresh} $prompt = 'Tell me about the code in this repo'; ${printPrompt} ${copilotCmd}`;
         console.log(`Running Powershell: ${psCommand}`);
         
         const envVars = { ...process.env };
         
         const copilotProcess = child_process.spawn(
-            'powershell.exe',
-            ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', psCommand],
+            'pwsh',
+            ['-NoProfile', '-Command', psCommand],
             {
                 shell: false,
                 stdio: 'inherit',

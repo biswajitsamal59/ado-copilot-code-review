@@ -9,13 +9,10 @@
     "author": "LittleFortSoftware",
     "version": {
         "Major": 1,
-        "Minor": 3,
+        "Minor": 4,
         "Patch": 0
     },
     "instanceNameFormat": "Copilot Code Review",
-    "demands": [
-        "powershell"
-    ],
     "minimumAgentVersion": "2.182.1",
     "inputs": [
         {
