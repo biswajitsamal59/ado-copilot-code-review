@@ -38,6 +38,8 @@ Before using this extension, ensure you have:
 
 ### Basic Usage
 
+#### Using System Access Token
+
 The recommended approach for Azure DevOps Services uses the pipeline's built-in System Access Token and a personal access token for a GitHub account with Copilot access:
 
 ```yaml
@@ -59,7 +61,7 @@ steps:
 
 > **IMPORTANT**: When using `useSystemAccessToken`, ensure the Build Service identity has **"Contribute to pull requests"** permission on your repository. See [Granting Build Service Permissions](#granting-build-service-permissions) below.
 
-### Basic Usage (PAT-based)
+#### Using Personal Access Token
 
 For Azure DevOps Server (on-prem) or if you prefer explicit token management:
 
@@ -80,7 +82,7 @@ steps:
     azureDevOpsPat: '$(AZURE_DEVOPS_PAT)'
 ```
 
-**NOTE**: When using a personal access token, all PR comments will be attributed to the account used to create the PAT. For large teams, consider using a PAT from a dedicated service account.
+#### Set Trigger
 
 Use branch policies on your protected branches to specify the pipeline as a build validation that must finish before the PR can be completed:
 
@@ -219,6 +221,8 @@ The Build Service identity needs permission to contribute to pull requests:
 4. Find the **[Project Name] Build Service ([Org Name])** identity
 5. Set **Contribute to pull requests** to **Allow**
 
+![Update Build Service identity permissions](https://github.com/user-attachments/assets/a0e1c6e4-1c76-40c5-b191-e65ad47dd81c)
+
 > **TIP**: If you don't see the Build Service identity, run a pipeline first to ensure it's been created.
 
 ### Option 2: Personal Access Token
@@ -233,7 +237,7 @@ Create a personal access token:
    - **Pull Request Threads**: Read & Write
 5. Store the token as a secret variable in your Azure DevOps pipeline
 
-**NOTE**: When using a PAT, PR comments will be attributed to the account that created the PAT. For large teams, consider using a dedicated service account.
+> **NOTE**: When using a PAT, PR comments will be attributed to the account that created the PAT. For large teams, consider using a dedicated service account.
 
 ### GitHub Personal Access Token
 
