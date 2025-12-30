@@ -36,8 +36,6 @@ Before using this extension, ensure you have:
 
 ## Usage
 
-### Basic Usage
-
 #### Using System Access Token
 
 The recommended approach for Azure DevOps Services uses the pipeline's built-in System Access Token and a personal access token for a GitHub account with Copilot access:
