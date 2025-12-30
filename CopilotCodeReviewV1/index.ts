@@ -20,15 +20,6 @@ function checkPwshAvailable(): boolean {
 }
 
 /**
- * Get the installed Node.js major version
- */
-function getNodeMajorVersion(): number {
-    const version = process.version; // e.g., 'v22.1.0'
-    const match = version.match(/^v(\d+)/);
-    return match ? parseInt(match[1], 10) : 0;
-}
-
-/**
  * Check if we're running on Windows
  */
 function isWindows(): boolean {
@@ -49,19 +40,6 @@ async function run(): Promise<void> {
             return;
         }
         console.log('PowerShell 7 (pwsh) is available.');
-
-        // On Linux, check Node.js version (required for npm-based Copilot CLI installation)
-        if (!isWindows()) {
-            const nodeVersion = getNodeMajorVersion();
-            if (nodeVersion < 22) {
-                tl.setResult(tl.TaskResult.Failed, 
-                    `Node.js 22 or later is required on Linux for GitHub Copilot CLI installation. ` +
-                    `Current version: ${process.version}. ` +
-                    `Please upgrade Node.js to version 22 or later.`);
-                return;
-            }
-            console.log(`Node.js version ${process.version} meets requirements.`);
-        }
 
         // Check author filter first (before any other processing)
         const authors = tl.getInput('authors');
@@ -344,9 +322,11 @@ async function installCopilotCli(): Promise<void> {
             command = 'winget';
             args = ['install', 'GitHub.Copilot', '--silent', '--accept-package-agreements', '--accept-source-agreements'];
         } else {
-            console.log('Installing GitHub Copilot CLI via npm...');
-            command = 'npm';
-            args = ['install', '-g', '@github/copilot'];
+            console.log('Installing GitHub Copilot CLI via official install script...');
+            // Use the official GitHub install script which downloads a pre-built binary
+            // The script installs to $HOME/.local/bin by default for non-root users
+            command = 'bash';
+            args = ['-c', 'curl -fsSL https://gh.io/copilot-install | bash'];
         }
         
         const installProcess = child_process.spawn(
@@ -361,6 +341,13 @@ async function installCopilotCli(): Promise<void> {
         installProcess.on('close', (code: number | null) => {
             if (code === 0) {
                 console.log('GitHub Copilot CLI installed successfully.');
+                // On Linux, add the install location to PATH for the current process
+                if (!isWindows()) {
+                    const homeDir = process.env['HOME'] || '';
+                    const localBin = path.join(homeDir, '.local', 'bin');
+                    process.env['PATH'] = `${localBin}:${process.env['PATH']}`;
+                    console.log(`Added ${localBin} to PATH.`);
+                }
                 resolve();
             } else {
                 reject(new Error(`Failed to install GitHub Copilot CLI. Exit code: ${code}`));

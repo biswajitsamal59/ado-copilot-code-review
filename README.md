@@ -27,7 +27,6 @@ Before using this extension, ensure you have:
   - **System Access Token (Recommended)**: Use the pipeline's built-in OAuth token for Azure DevOps Services. Must grant permissions to Build Service Identity (see below).
   - **Personal Access Token**: Required for Azure DevOps Server (on-prem) or if you prefer explicit token management. Needs permissions to read pull requests, write comments, and read code.
 - **PowerShell 7+**: This extension requires PowerShell 7 or later (`pwsh`) to be installed on the agent. PowerShell 7 is pre-installed on Microsoft-hosted agents.
-- **Node.js 22+ (Linux only)**: On Linux agents, Node.js 22 or later is required for installing the GitHub Copilot CLI via npm.
 
 > **Platform Support**: This extension supports both Windows and Linux Azure DevOps agents. Compatible with MS-hosted and self-hosted agents.
 
@@ -261,7 +260,7 @@ Alternatively, you can create the pipeline first and then configure the pipeline
 
 ## How It Works
 
-1. **Install Copilot CLI**: The task ensures the GitHub Copilot CLI is installed on the build agent using `winget`
+1. **Install Copilot CLI**: The task ensures the GitHub Copilot CLI is installed on the build agent (using `winget` on Windows or the official install script on Linux)
 2. **Fetch PR Context**: The task retrieves pull request metadata, existing comments, and iteration details via the Azure DevOps API
 3. **Run Copilot Review**: Using the PR context and local Git commands, Copilot analyzes the changes using the configured or default prompt
 4. **Post Comments**: Review findings are posted as comments on the pull request via the Azure DevOps API
@@ -280,8 +279,7 @@ The default prompt instructs Copilot to focus on:
 
 ## Limitations
 
-- **Windows Only**: Currently requires Windows-based agents
-- **GitHub Copilot CLI**: Requires the GitHub Copilot CLI to be installable via `winget`. If using MS-hosted agents, this should be enabled by default. If using a self-hosted agent, run `winget -v` to ensure the tool is accessible.
+- **GitHub Copilot CLI**: On Windows, requires `winget` to be available. On Linux, requires `curl` and `bash` (standard on most systems). If using MS-hosted agents, these should be available by default.
 - **General Comments Only**: Posts general PR comments (file-level inline comments not yet supported)
 - **Context Window**: Very large PRs may exceed Copilot's context limits
 
@@ -289,7 +287,8 @@ The default prompt instructs Copilot to focus on:
 
 ### Task fails with "GitHub Copilot CLI not found"
 
-Ensure your agent can access `winget` and has internet connectivity to install the Copilot CLI.
+- **Windows**: Ensure your agent can access `winget` and has internet connectivity to install the Copilot CLI.
+- **Linux**: Ensure `curl` and `bash` are available, and the agent has internet connectivity to download from `https://gh.io/copilot-install`.
 
 ### Authentication errors
 
