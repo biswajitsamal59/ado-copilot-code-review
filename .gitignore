@@ -31,3 +31,6 @@ test-results.xml
 *.temp
 PR_Details.txt
 Iteration_Details.txt
+# Dev task folder (built files copied at package time)
+CopilotCodeReviewDevV1/*
+!CopilotCodeReviewDevV1/task.json
