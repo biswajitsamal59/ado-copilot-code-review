@@ -5,6 +5,7 @@
     "name": "Copilot Code Review",
     "version": "1.3.0",
     "publisher": "LittleFortSoftware",
+    "public": true,
     "targets": [
         {
             "id": "Microsoft.VisualStudio.Services"
