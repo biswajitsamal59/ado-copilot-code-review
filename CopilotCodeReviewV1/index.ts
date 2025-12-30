@@ -33,7 +33,37 @@ async function run(): Promise<void> {
 
         // Get required inputs
         const githubPat = tl.getInputRequired('githubPat');
-        const azureDevOpsPat = tl.getInputRequired('azureDevOpsPat');
+        
+        // Get Azure DevOps authentication settings
+        const useSystemAccessToken = tl.getBoolInput('useSystemAccessToken', false);
+        const azureDevOpsPat = tl.getInput('azureDevOpsPat');
+        
+        // Determine which token and auth type to use
+        let azureDevOpsToken: string;
+        let azureDevOpsAuthType: string;
+        
+        if (useSystemAccessToken) {
+            // Use System.AccessToken (OAuth Bearer token)
+            const systemToken = tl.getVariable('System.AccessToken');
+            if (!systemToken) {
+                tl.setResult(tl.TaskResult.Failed, 
+                    'System.AccessToken is not available. Ensure the pipeline has access to the OAuth token. ' +
+                    'In YAML pipelines, you may need to explicitly map it using env: SYSTEM_ACCESSTOKEN: $(System.AccessToken)');
+                return;
+            }
+            azureDevOpsToken = systemToken;
+            azureDevOpsAuthType = 'Bearer';
+            console.log('Using System.AccessToken (OAuth) for Azure DevOps authentication.');
+        } else if (azureDevOpsPat) {
+            // Use provided PAT (Basic auth)
+            azureDevOpsToken = azureDevOpsPat;
+            azureDevOpsAuthType = 'Basic';
+            console.log('Using Personal Access Token for Azure DevOps authentication.');
+        } else {
+            tl.setResult(tl.TaskResult.Failed, 
+                'Azure DevOps authentication is required. Either provide an Azure DevOps PAT or enable "Use System Access Token".');
+            return;
+        }
         
         // Get inputs with defaults from pipeline variables
         let organization = tl.getInput('organization');
@@ -104,7 +134,8 @@ async function run(): Promise<void> {
 
         // Set environment variables for PowerShell scripts
         process.env['GH_TOKEN'] = githubPat;
-        process.env['AZUREDEVOPSPAT'] = azureDevOpsPat;
+        process.env['AZUREDEVOPS_TOKEN'] = azureDevOpsToken;
+        process.env['AZUREDEVOPS_AUTH_TYPE'] = azureDevOpsAuthType;
         process.env['ORGANIZATION'] = organization;
         process.env['PROJECT'] = project;
         process.env['REPOSITORY'] = repository;
@@ -129,7 +160,8 @@ async function run(): Promise<void> {
         const prDetailsOutput = path.join(workingDirectory, 'PR_Details.txt');
         
         await runPowerShellScript(prDetailsScript, [
-            `-PAT "${azureDevOpsPat}"`,
+            `-Token "${azureDevOpsToken}"`,
+            `-AuthType "${azureDevOpsAuthType}"`,
             `-Organization "${organization}"`,
             `-Project "${project}"`,
             `-Repository "${repository}"`,
@@ -144,7 +176,8 @@ async function run(): Promise<void> {
         const iterationDetailsOutput = path.join(workingDirectory, 'Iteration_Details.txt');
         
         await runPowerShellScript(prChangesScript, [
-            `-PAT "${azureDevOpsPat}"`,
+            `-Token "${azureDevOpsToken}"`,
+            `-AuthType "${azureDevOpsAuthType}"`,
             `-Organization "${organization}"`,
             `-Project "${project}"`,
             `-Repository "${repository}"`,
