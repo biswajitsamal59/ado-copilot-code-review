@@ -325,8 +325,9 @@ async function installCopilotCli(): Promise<void> {
             console.log('Installing GitHub Copilot CLI via official install script...');
             // Use the official GitHub install script which downloads a pre-built binary
             // The script installs to $HOME/.local/bin by default for non-root users
-            command = 'bash';
-            args = ['-c', 'curl -fsSL https://gh.io/copilot-install | bash'];
+            // Pass the full command as a single string when using shell: true
+            command = 'curl -fsSL https://gh.io/copilot-install | bash';
+            args = [];
         }
         
         const installProcess = child_process.spawn(

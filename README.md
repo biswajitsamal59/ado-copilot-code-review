@@ -19,7 +19,7 @@ This brings GitHub Copilot's code review capabilities to Azure DevOps, helping t
 
 ## Prerequisites
 
-Before using this extension, ensure you have:
+This extension supports Windows and Linux Azure DevOps agents. Compatible with MS-hosted and self-hosted agents. Before using, ensure you have:
 
 - **GitHub Copilot Subscription**: An active GitHub Copilot subscription (Individual, Business, or Enterprise)
 - **GitHub Personal Access Token**: A PAT with Copilot access permissions
@@ -27,8 +27,6 @@ Before using this extension, ensure you have:
   - **System Access Token (Recommended)**: Use the pipeline's built-in OAuth token for Azure DevOps Services. Must grant permissions to Build Service Identity (see below).
   - **Personal Access Token**: Required for Azure DevOps Server (on-prem) or if you prefer explicit token management. Needs permissions to read pull requests, write comments, and read code.
 - **PowerShell 7+**: This extension requires PowerShell 7 or later (`pwsh`) to be installed on the agent. PowerShell 7 is pre-installed on Microsoft-hosted agents.
-
-> **Platform Support**: This extension supports both Windows and Linux Azure DevOps agents. Compatible with MS-hosted and self-hosted agents.
 
 ## Installation
 
@@ -133,7 +131,7 @@ parameters:
 trigger: none
 
 pool:
-  vmImage: 'ubuntu-latest'  # or 'windows-latest'
+  vmImage: 'ubuntu-latest'
 
 steps:
   - checkout: self
