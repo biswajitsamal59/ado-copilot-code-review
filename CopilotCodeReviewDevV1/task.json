@@ -3,14 +3,14 @@
     "id": "b8e3f2a1-9c4d-4e5f-8a6b-7c8d9e0f1a2b",
     "name": "CopilotCodeReviewDev",
     "friendlyName": "Copilot Code Review (Dev)",
-    "description": "Development version - Perform automated code reviews on pull requests using the official GitHub Copilot CLI",
+    "description": "[Development Build] Perform automated code reviews on pull requests using the official GitHub Copilot CLI",
     "helpMarkDown": "[Learn more about this task](https://github.com/little-fort/ado-copilot-code-review)",
     "category": "Utility",
     "author": "LittleFortSoftware",
     "version": {
         "Major": 0,
         "Minor": 2,
-        "Patch": 0
+        "Patch": 2
     },
     "instanceNameFormat": "Copilot Code Review (Dev)",
     "minimumAgentVersion": "2.182.1",

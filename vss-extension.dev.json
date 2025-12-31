@@ -3,7 +3,7 @@
     "manifestVersion": 1,
     "id": "ado-copilot-code-review-dev",
     "name": "Copilot Code Review (Dev)",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "publisher": "LittleFortSoftware",
     "public": false,
     "targets": [
@@ -11,7 +11,7 @@
             "id": "Microsoft.VisualStudio.Services"
         }
     ],
-    "description": "Development version - Automated pull request code reviews powered by the official GitHub Copilot CLI. Get AI-driven feedback on your PRs directly in Azure DevOps.",
+    "description": "[Development Build] Automated pull request code reviews powered by the official GitHub Copilot CLI. Get AI-driven feedback on your PRs directly in Azure DevOps.",
     "categories": [
         "Azure Pipelines"
     ],
