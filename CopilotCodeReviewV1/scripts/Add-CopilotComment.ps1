@@ -32,27 +32,17 @@
 param(
     [Parameter(Mandatory = $true, HelpMessage = "Comment text to post")]
     [ValidateNotNullOrEmpty()]
-    [string]$Comment
+    [string]$Comment,
+
+    [Parameter(Mandatory = $false, HelpMessage = "Status for the new thread: Active or Closed")]
+    [ValidateSet("Active", "Closed")]
+    [string]$Status = 'Active'
 )
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# Determine thread status based on comment content (approval-like comments -> Closed)
-# Only perform auto-detection if the corresponding task input was enabled
-$status = 'Active'
-$autoResolveEnv = ${env:AUTO_RESOLVE_APPROVAL_COMMENTS}
-if ($null -ne $autoResolveEnv -and $autoResolveEnv.ToString().ToLower() -eq 'true') {
-    try {
-        if ($Comment -match '(?i)\b(looks good|lgtm|approved|no issues|no issues found|good to merge|ready to merge|approve)\b') {
-            $status = 'Closed'
-            Write-Host "Detected approval-like comment — setting thread status to: $status" -ForegroundColor Yellow
-        }
-    } catch {
-        $status = 'Active'
-    }
-} else {
-    Write-Host "Auto-resolve approval comments is disabled; posting thread with status: $status" -ForegroundColor DarkGray
-}
+# Use the provided Status parameter (default: Active). The prompt should pass -Status when possible.
+Write-Host "Posting comment with thread status: $Status" -ForegroundColor DarkGray
 
 & "$scriptDir\Add-AzureDevOpsPRComment.ps1" `
     -Token ${env:AZUREDEVOPS_TOKEN} `
@@ -62,4 +52,4 @@ if ($null -ne $autoResolveEnv -and $autoResolveEnv.ToString().ToLower() -eq 'tru
     -Repository ${env:REPOSITORY} `
     -Id ${env:PRID} `
     -Comment $Comment `
-    -Status $status
+    -Status $Status
