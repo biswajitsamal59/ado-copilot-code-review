@@ -37,6 +37,23 @@ param(
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+# Determine thread status based on comment content (approval-like comments -> Closed)
+# Only perform auto-detection if the corresponding task input was enabled
+$status = 'Active'
+$autoResolveEnv = ${env:AUTO_RESOLVE_APPROVAL_COMMENTS}
+if ($null -ne $autoResolveEnv -and $autoResolveEnv.ToString().ToLower() -eq 'true') {
+    try {
+        if ($Comment -match '(?i)\b(looks good|lgtm|approved|no issues|no issues found|good to merge|ready to merge|approve)\b') {
+            $status = 'Closed'
+            Write-Host "Detected approval-like comment — setting thread status to: $status" -ForegroundColor Yellow
+        }
+    } catch {
+        $status = 'Active'
+    }
+} else {
+    Write-Host "Auto-resolve approval comments is disabled; posting thread with status: $status" -ForegroundColor DarkGray
+}
+
 & "$scriptDir\Add-AzureDevOpsPRComment.ps1" `
     -Token ${env:AZUREDEVOPS_TOKEN} `
     -AuthType ${env:AZUREDEVOPS_AUTH_TYPE} `
@@ -44,4 +61,5 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
     -Project ${env:PROJECT} `
     -Repository ${env:REPOSITORY} `
     -Id ${env:PRID} `
-    -Comment $Comment
+    -Comment $Comment `
+    -Status $status
