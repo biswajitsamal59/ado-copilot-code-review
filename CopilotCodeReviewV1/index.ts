@@ -144,7 +144,6 @@ async function run(): Promise<void> {
         const model = tl.getInput('model');
         const promptFile = tl.getInput('promptFile');
         const prompt = tl.getInput('prompt');
-        const autoResolveApprovalComments = tl.getBoolInput('autoResolveApprovalComments', false);
 
         // If PR ID not provided, try to get from pipeline variable
         if (!pullRequestId) {
@@ -177,7 +176,6 @@ async function run(): Promise<void> {
         process.env['PROJECT'] = project;
         process.env['REPOSITORY'] = repository;
         process.env['PRID'] = pullRequestId;
-        process.env['AUTO_RESOLVE_APPROVAL_COMMENTS'] = autoResolveApprovalComments ? 'true' : 'false';
 
         const scriptsDir = path.join(__dirname, 'scripts');
         const workingDirectory = tl.getVariable('System.DefaultWorkingDirectory') || process.cwd();
