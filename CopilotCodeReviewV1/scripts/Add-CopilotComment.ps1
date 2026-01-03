@@ -32,10 +32,17 @@
 param(
     [Parameter(Mandatory = $true, HelpMessage = "Comment text to post")]
     [ValidateNotNullOrEmpty()]
-    [string]$Comment
+    [string]$Comment,
+
+    [Parameter(Mandatory = $false, HelpMessage = "Status for the new thread: Active or Closed")]
+    [ValidateSet("Active", "Closed")]
+    [string]$Status = 'Active'
 )
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+# Use the provided Status parameter (default: Active). The prompt should pass -Status when possible.
+Write-Host "Posting comment with thread status: $Status" -ForegroundColor DarkGray
 
 & "$scriptDir\Add-AzureDevOpsPRComment.ps1" `
     -Token ${env:AZUREDEVOPS_TOKEN} `
@@ -44,4 +51,5 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
     -Project ${env:PROJECT} `
     -Repository ${env:REPOSITORY} `
     -Id ${env:PRID} `
-    -Comment $Comment
+    -Comment $Comment `
+    -Status $Status

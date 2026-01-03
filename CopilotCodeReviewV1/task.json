@@ -113,6 +113,15 @@
             "defaultValue": "",
             "helpMarkDown": "Optional. A comma-separated list of email addresses. If specified, the task will only run code reviews for PRs authored by users with matching email addresses. Uses $(Build.RequestedForEmail) for comparison."
         }
+        ,
+        {
+            "name": "autoResolveApprovalComments",
+            "type": "boolean",
+            "label": "Auto-resolve approval comments",
+            "required": false,
+            "defaultValue": false,
+            "helpMarkDown": "When enabled, comments that appear to indicate approval (e.g., 'Looks good', 'LGTM', 'No issues found') will be posted as resolved (thread status 'Closed')."
+        }
     ],
     "execution": {
         "Node20_1": {
