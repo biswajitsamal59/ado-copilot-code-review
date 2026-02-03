@@ -32,9 +32,13 @@ jobs:
       - name: Package extension
         run: npm run package:prod
 
+      - name: Get extension version
+        id: version
+        run: echo "version=$(jq -r '.version' vss-extension.json)" >> $GITHUB_OUTPUT
+
       - name: Upload extension artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vsix-package
+          name: vsix-package-${{ steps.version.outputs.version }}
           path: '*.vsix'
           if-no-files-found: error
