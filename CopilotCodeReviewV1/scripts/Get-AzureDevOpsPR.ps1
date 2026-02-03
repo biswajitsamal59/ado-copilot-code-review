@@ -160,6 +160,64 @@ function Invoke-AzureDevOpsApi {
     }
 }
 
+function Invoke-AzureDevOpsApiPaginated {
+    param(
+        [string]$BaseUri,
+        [hashtable]$Headers,
+        [int]$PageSize = 250,
+        [int]$MaxResults = 0,
+        [scriptblock]$StopCondition = $null
+    )
+    
+    $allResults = @()
+    $skip = 0
+    $page = 1
+    
+    # Determine the separator for query parameters
+    $separator = if ($BaseUri -match '\?') { '&' } else { '?' }
+    
+    do {
+        if ($page -eq 1) {
+            Write-Host "Fetching pull requests (page $page)..." -ForegroundColor DarkGray
+        }
+        else {
+            Write-Host "Fetching pull requests (page $page, $($allResults.Count) retrieved so far)..." -ForegroundColor DarkGray
+        }
+        
+        $paginatedUri = "$BaseUri$separator`$top=$PageSize&`$skip=$skip"
+        $response = Invoke-AzureDevOpsApi -Uri $paginatedUri -Headers $Headers
+        
+        if ($null -eq $response -or $null -eq $response.value) {
+            break
+        }
+        
+        $returnedCount = $response.value.Count
+        
+        # Check stop condition after each page (for early termination)
+        if ($null -ne $StopCondition) {
+            $match = & $StopCondition $response.value
+            if ($null -ne $match) {
+                Write-Host "Found target on page $page." -ForegroundColor DarkGray
+                return @{ value = @($match); count = 1; earlyTermination = $true }
+            }
+        }
+        
+        $allResults += $response.value
+        $skip += $PageSize
+        $page++
+        
+        # Check if we should stop due to MaxResults
+        if ($MaxResults -gt 0 -and $allResults.Count -ge $MaxResults) {
+            $allResults = $allResults | Select-Object -First $MaxResults
+            break
+        }
+        
+    } while ($returnedCount -eq $PageSize)  # Continue if we got a full page
+    
+    Write-Host "Retrieved $($allResults.Count) pull requests total." -ForegroundColor DarkGray
+    return @{ value = $allResults; count = $allResults.Count }
+}
+
 function Format-DateForDisplay {
     param([string]$DateString)
     
@@ -226,12 +284,21 @@ if ($Id -gt 0) {
     
     # First, we need to find the PR across repositories if repository is not specified
     if ([string]::IsNullOrEmpty($Repository)) {
-        # Search for the PR across all repositories in the project
+        # Search for the PR across all repositories in the project (with pagination)
         $searchUrl = "$baseUrl/git/pullrequests?searchCriteria.status=all&$apiVersion"
-        $allPRs = Invoke-AzureDevOpsApi -Uri $searchUrl -Headers $headers
         
-        if ($null -eq $allPRs) {
-            exit 1
+        # Use early termination to stop as soon as we find the target PR
+        $targetPrId = $Id
+        $stopCondition = {
+            param($results)
+            $results | Where-Object { $_.pullRequestId -eq $targetPrId } | Select-Object -First 1
+        }
+        
+        $allPRs = Invoke-AzureDevOpsApiPaginated -BaseUri $searchUrl -Headers $headers -StopCondition $stopCondition
+        
+        if ($null -eq $allPRs -or $null -eq $allPRs.value -or $allPRs.value.Count -eq 0) {
+            Write-Warning "Pull Request #$Id not found in project '$Project'."
+            exit 0
         }
         
         $targetPR = $allPRs.value | Where-Object { $_.pullRequestId -eq $Id } | Select-Object -First 1
@@ -494,9 +561,9 @@ else {
     $pullRequests = @()
     
     if ([string]::IsNullOrEmpty($Repository)) {
-        # Get PRs from all repositories in the project
+        # Get PRs from all repositories in the project (with pagination)
         $prsUrl = "$baseUrl/git/pullrequests?searchCriteria.status=active&$apiVersion"
-        $response = Invoke-AzureDevOpsApi -Uri $prsUrl -Headers $headers
+        $response = Invoke-AzureDevOpsApiPaginated -BaseUri $prsUrl -Headers $headers
         
         if ($null -eq $response) {
             exit 1
@@ -505,9 +572,9 @@ else {
         $pullRequests = $response.value
     }
     else {
-        # Get PRs from specific repository
+        # Get PRs from specific repository (with pagination)
         $prsUrl = "$baseUrl/git/repositories/$Repository/pullrequests?searchCriteria.status=active&$apiVersion"
-        $response = Invoke-AzureDevOpsApi -Uri $prsUrl -Headers $headers
+        $response = Invoke-AzureDevOpsApiPaginated -BaseUri $prsUrl -Headers $headers
         
         if ($null -eq $response) {
             exit 1

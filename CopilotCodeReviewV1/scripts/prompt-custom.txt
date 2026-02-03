@@ -25,7 +25,7 @@ Notes:
 - Use the status value 'Active' for any feedback that requests changes or further work.
 - Prefer inline comments (`-FilePath` and `-StartLine`) when the feedback relates to specific code locations.
 - The file path should use forward slashes and start with a leading slash (e.g., '/src/App.cs').
-- When including multi-line code blocks in the comment markdown, ensure the code block starts and ends with triple backticks
+- When including multi-line code blocks in the comment markdown, always ensure the code block is preceded and followed by lines with triple backticks (i.e. '```')
 
 Be aware that you are operating in an Azure Pipelines context and so permissions restrictions over network or file access may occur. If you encounter conditions blocking you from performing the outlined steps, you do not need to persist indefinitely—you may simply print any suggestions to the console log and end the run.
 
