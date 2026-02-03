@@ -289,15 +289,19 @@ async function run(): Promise<void> {
         const addCommentScriptSource = path.join(scriptsDir, 'Add-AzureDevOpsPRComment.ps1');
         const commentScriptSource = path.join(scriptsDir, 'Add-CopilotComment.ps1');
         const updateCommentScriptSource = path.join(scriptsDir, 'Update-CopilotComment.ps1');
+        const deleteCommentScriptSource = path.join(scriptsDir, 'Delete-CopilotComment.ps1');
         const addCommentScriptDest = path.join(workingDirectory, 'Add-AzureDevOpsPRComment.ps1');
         const commentScriptDest = path.join(workingDirectory, 'Add-CopilotComment.ps1');
         const updateCommentScriptDest = path.join(workingDirectory, 'Update-CopilotComment.ps1');
+        const deleteCommentScriptDest = path.join(workingDirectory, 'Delete-CopilotComment.ps1');
         fs.copyFileSync(addCommentScriptSource, addCommentScriptDest);
         console.log(`Copied Add-AzureDevOpsPRComment.ps1 to: ${addCommentScriptDest}`);
         fs.copyFileSync(commentScriptSource, commentScriptDest);
         console.log(`Copied Add-CopilotComment.ps1 to: ${commentScriptDest}`);
         fs.copyFileSync(updateCommentScriptSource, updateCommentScriptDest);
         console.log(`Copied Update-CopilotComment.ps1 to: ${updateCommentScriptDest}`);
+        fs.copyFileSync(deleteCommentScriptSource, deleteCommentScriptDest);
+        console.log(`Copied Delete-CopilotComment.ps1 to: ${deleteCommentScriptDest}`);
         
         // Run Copilot CLI with timeout
         const timeoutMs = timeoutMinutes * 60 * 1000;
