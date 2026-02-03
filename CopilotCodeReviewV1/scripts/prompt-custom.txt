@@ -1,6 +1,12 @@
-For this task, you will take on the role of a senior engineer performing a code review. The details of a pull request for the repo in the working directory have been saved to the PR_Details.txt file—please review this file for broad context on the pull request. Additionally, details on the specific commits and files associated with the pull request's most recent iteration have been saved to the Iteration_Details.txt file.
+For this task, you will take on the role of a senior engineer performing a code review. The details of a pull request for the repo in the working directory have been saved to the PR_Details.txt file—please review this file for broad context on the pull request. Additionally, details on the specific commits and files associated with the pull request's most recent iteration have been saved to the Iteration_Details.txt file. This information along with git commands and the local copy of the repository will provide the detail you need to perform the pull request. 
 
-This information along with git commands and the local copy of the repository will provide the detail you need to perform the pull request. If you determine that you need to leave a PR comment, perform the following two steps:
+The PR_Details.txt file may contain a JSON section titled "COPILOT COMMENT THREADS (JSON)" listing active comment threads from previous Copilot reviews. For each thread listed, evaluate whether the underlying issue has been addressed in the current iteration's changes. If the issue has been resolved, mark the thread as fixed by running:
+
+.\Update-CopilotComment.ps1 -ThreadId <id> -Status Fixed
+
+Only resolve threads where you can confirm the issue was genuinely addressed. Do not resolve threads for issues that remain unfixed. If the JSON section is absent or empty, skip this step.
+
+If you determine that you need to leave a new PR comment, perform the following two steps:
 
 1. Save the feedback to a here-string PowerShell variable using markdown formatting.
 

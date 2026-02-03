@@ -288,12 +288,16 @@ async function run(): Promise<void> {
         // so Copilot can find and use them for posting PR comments
         const addCommentScriptSource = path.join(scriptsDir, 'Add-AzureDevOpsPRComment.ps1');
         const commentScriptSource = path.join(scriptsDir, 'Add-CopilotComment.ps1');
+        const updateCommentScriptSource = path.join(scriptsDir, 'Update-CopilotComment.ps1');
         const addCommentScriptDest = path.join(workingDirectory, 'Add-AzureDevOpsPRComment.ps1');
         const commentScriptDest = path.join(workingDirectory, 'Add-CopilotComment.ps1');
+        const updateCommentScriptDest = path.join(workingDirectory, 'Update-CopilotComment.ps1');
         fs.copyFileSync(addCommentScriptSource, addCommentScriptDest);
         console.log(`Copied Add-AzureDevOpsPRComment.ps1 to: ${addCommentScriptDest}`);
         fs.copyFileSync(commentScriptSource, commentScriptDest);
         console.log(`Copied Add-CopilotComment.ps1 to: ${commentScriptDest}`);
+        fs.copyFileSync(updateCommentScriptSource, updateCommentScriptDest);
+        console.log(`Copied Update-CopilotComment.ps1 to: ${updateCommentScriptDest}`);
         
         // Run Copilot CLI with timeout
         const timeoutMs = timeoutMinutes * 60 * 1000;
