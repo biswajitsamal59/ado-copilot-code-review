@@ -160,6 +160,8 @@ steps:
 | `model` | No | - | Preferred Copilot model to use (see valid options below) |
 | `promptFile` | No | - | Path to custom prompt file |
 | `prompt` | No | - | Inline custom prompt (overrides `promptFile`) |
+| `promptFileRaw` | No | - | _(Advanced)_ Path to custom prompt file that will be passed as-is with no supportive direction. |
+| `promptRaw` | No | - | _(Advanced)_ Inline custom prompt that will be passed as-is with no supportive direction. |
 | `authors` | No | - | Comma-separated list of email addresses to filter reviews (see below) |
 
 ### Copilot Models
