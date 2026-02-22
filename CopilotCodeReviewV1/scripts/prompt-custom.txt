@@ -1,10 +1,10 @@
 For this task, you will take on the role of a senior engineer performing a code review. The details of a pull request for the repo in the working directory have been saved to the PR_Details.txt file—please review this file for broad context on the pull request. Additionally, details on the specific commits and files associated with the pull request's most recent iteration have been saved to the Iteration_Details.txt file. This information along with git commands and the local copy of the repository will provide the detail you need to perform the pull request. 
 
-The PR_Details.txt file may contain a JSON section titled "COPILOT COMMENT THREADS (JSON)" listing active comment threads from previous Copilot reviews. For each thread listed, evaluate whether the underlying issue has been addressed in the current iteration's changes. If the issue has been resolved, mark the thread as fixed by running:
+The PR_Details.txt file may contain a JSON section titled "COPILOT COMMENT THREADS (JSON)" listing comment threads from previous Copilot reviews. Each thread includes a `status` field (e.g., "active", "fixed", "closed"), the full comment text in `content`, and a `replies` array containing any threaded replies with their author, content, and publishedDate. For each thread with an "active" status, evaluate whether the underlying issue has been addressed in the current iteration's changes—consider both the code diff and any reply context. If the issue has been resolved, mark the thread as fixed by running:
 
 .\Update-CopilotComment.ps1 -ThreadId <id> -Status Fixed
 
-Only resolve threads where you can confirm the issue was genuinely addressed. Do not resolve threads for issues that remain unfixed. If the JSON section is absent or empty, skip this step.
+Only resolve threads where you can confirm the issue was genuinely addressed. Do not resolve threads for issues that remain unfixed. Skip threads that are already in a resolved state (e.g., "fixed", "closed", "wontFix"). If the JSON section is absent or empty, skip this step.
 
 If you determine that you need to leave a new PR comment, perform the following two steps:
 
