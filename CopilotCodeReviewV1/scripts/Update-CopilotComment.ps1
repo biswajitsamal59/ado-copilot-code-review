@@ -92,12 +92,19 @@ try {
     $prId = ${env:PRID}
 
     # Validate required environment variables
-    if ([string]::IsNullOrEmpty($token) -or 
-        [string]::IsNullOrEmpty($organization) -or 
-        [string]::IsNullOrEmpty($project) -or 
-        [string]::IsNullOrEmpty($repository) -or 
+    if ([string]::IsNullOrEmpty($token) -or
+        [string]::IsNullOrEmpty($organization) -or
+        [string]::IsNullOrEmpty($project) -or
+        [string]::IsNullOrEmpty($repository) -or
         [string]::IsNullOrEmpty($prId)) {
-        # Missing required env vars - exit silently
+        # Missing required env vars - log a warning so the issue is visible in pipeline logs
+        $missing = @()
+        if ([string]::IsNullOrEmpty($token)) { $missing += 'AZUREDEVOPS_TOKEN' }
+        if ([string]::IsNullOrEmpty($organization)) { $missing += 'ORGANIZATION' }
+        if ([string]::IsNullOrEmpty($project)) { $missing += 'PROJECT' }
+        if ([string]::IsNullOrEmpty($repository)) { $missing += 'REPOSITORY' }
+        if ([string]::IsNullOrEmpty($prId)) { $missing += 'PRID' }
+        Write-Warning "Update-CopilotComment: Skipping update of thread #$ThreadId — required environment variable(s) not set: $($missing -join ', ')"
         exit 0
     }
 
@@ -152,9 +159,29 @@ try {
     }
 }
 catch {
-    # Silent failure - do not output error or set non-zero exit code
-    # This ensures Copilot workflow continues even if update fails
-    Write-Host "Note: Could not update thread #$ThreadId (this is not critical)" -ForegroundColor DarkGray
+    # Non-blocking failure - log detailed error info but don't fail the pipeline
+    $errorMsg = "Update-CopilotComment: Could not update thread #$ThreadId"
+
+    $statusCode = $null
+    $errorDetail = $null
+    if ($_.Exception.Response) {
+        $statusCode = $_.Exception.Response.StatusCode.value__
+    }
+    if ($_.ErrorDetails -and $_.ErrorDetails.Message) {
+        $errorDetail = $_.ErrorDetails.Message
+    }
+
+    if ($statusCode) {
+        $errorMsg += " (HTTP $statusCode)"
+    }
+    if ($errorDetail) {
+        $errorMsg += " — API response: $errorDetail"
+    }
+    elseif ($_.Exception.Message) {
+        $errorMsg += " — $($_.Exception.Message)"
+    }
+
+    Write-Warning $errorMsg
 }
 
 # Always exit with success

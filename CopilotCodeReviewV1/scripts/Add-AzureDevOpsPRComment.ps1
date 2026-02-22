@@ -178,20 +178,37 @@ function Invoke-AzureDevOpsApi {
         return $response
     }
     catch {
-        $statusCode = $_.Exception.Response.StatusCode.value__
-        $errorMessage = $_.ErrorDetails.Message
-        
+        $statusCode = $null
+        $errorDetail = $null
+
+        if ($_.Exception.Response) {
+            $statusCode = $_.Exception.Response.StatusCode.value__
+        }
+        if ($_.ErrorDetails -and $_.ErrorDetails.Message) {
+            $errorDetail = $_.ErrorDetails.Message
+        }
+
+        # Build a descriptive error message with all available context
+        $baseMsg = "Azure DevOps API error"
+        if ($statusCode) {
+            $baseMsg += " (HTTP $statusCode)"
+        }
+        $baseMsg += " calling $Method $Uri"
+
         if ($statusCode -eq 401) {
-            Write-Error "Authentication failed. Please verify your PAT is valid and has appropriate permissions."
+            Write-Error "$baseMsg — Authentication failed. Please verify your token is valid and has appropriate permissions. API response: $errorDetail"
         }
         elseif ($statusCode -eq 404) {
-            Write-Error "Resource not found. Please verify the organization, project, repository, and PR ID."
+            Write-Error "$baseMsg — Resource not found. Please verify the organization, project, repository, and PR ID. API response: $errorDetail"
         }
         elseif ($statusCode -eq 400) {
-            Write-Error "Bad request: $errorMessage"
+            Write-Error "$baseMsg — Bad request. API response: $errorDetail"
+        }
+        elseif ($statusCode) {
+            Write-Error "$baseMsg — API response: $errorDetail"
         }
         else {
-            Write-Error "API request failed: $errorMessage (Status: $statusCode)"
+            Write-Error "$baseMsg — $($_.Exception.Message)"
         }
         return $null
     }
