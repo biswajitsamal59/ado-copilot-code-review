@@ -14,8 +14,8 @@
     Optional. The type of authentication to use. Valid values: 'Basic' (for PAT) or 'Bearer' (for OAuth/System.AccessToken).
     Default is 'Basic'.
 
-.PARAMETER Organization
-    Required. The Azure DevOps organization name.
+.PARAMETER CollectionUri
+    Required. The Azure DevOps collection URI (e.g., 'https://dev.azure.com/myorg' or 'https://tfs.contoso.com/tfs/DefaultCollection').
 
 .PARAMETER Project
     Required. The Azure DevOps project name.
@@ -52,23 +52,23 @@
     Optional. Pull request iteration ID for inline comments. Helps anchor the comment to the correct diff version.
 
 .EXAMPLE
-    .\Add-AzureDevOpsPRComment.ps1 -Token "your-pat" -Organization "myorg" -Project "myproject" -Repository "myrepo" -Id 123 -Comment "This looks good!"
+    .\Add-AzureDevOpsPRComment.ps1 -Token "your-pat" -CollectionUri "https://dev.azure.com/myorg" -Project "myproject" -Repository "myrepo" -Id 123 -Comment "This looks good!"
     Creates a new comment thread on pull request #123 using PAT authentication.
 
 .EXAMPLE
-    .\Add-AzureDevOpsPRComment.ps1 -Token "oauth-token" -AuthType "Bearer" -Organization "myorg" -Project "myproject" -Repository "myrepo" -Id 123 -Comment "This looks good!"
+    .\Add-AzureDevOpsPRComment.ps1 -Token "oauth-token" -AuthType "Bearer" -CollectionUri "https://dev.azure.com/myorg" -Project "myproject" -Repository "myrepo" -Id 123 -Comment "This looks good!"
     Creates a new comment thread using OAuth/System.AccessToken authentication.
 
 .EXAMPLE
-    .\Add-AzureDevOpsPRComment.ps1 -Token "your-pat" -Organization "myorg" -Project "myproject" -Repository "myrepo" -Id 123 -Comment "I agree" -ThreadId 456
+    .\Add-AzureDevOpsPRComment.ps1 -Token "your-pat" -CollectionUri "https://dev.azure.com/myorg" -Project "myproject" -Repository "myrepo" -Id 123 -Comment "I agree" -ThreadId 456
     Replies to an existing thread #456 on pull request #123.
 
 .EXAMPLE
-    .\Add-AzureDevOpsPRComment.ps1 -Token "your-pat" -Organization "myorg" -Project "myproject" -Repository "myrepo" -Id 123 -Comment "Consider async" -FilePath "/src/Program.cs" -StartLine 42
+    .\Add-AzureDevOpsPRComment.ps1 -Token "your-pat" -CollectionUri "https://dev.azure.com/myorg" -Project "myproject" -Repository "myrepo" -Id 123 -Comment "Consider async" -FilePath "/src/Program.cs" -StartLine 42
     Creates an inline comment on line 42 of Program.cs.
 
 .EXAMPLE
-    .\Add-AzureDevOpsPRComment.ps1 -Token "your-pat" -Organization "myorg" -Project "myproject" -Repository "myrepo" -Id 123 -Comment "Refactor this" -FilePath "/src/Program.cs" -StartLine 42 -EndLine 50 -IterationId 3
+    .\Add-AzureDevOpsPRComment.ps1 -Token "your-pat" -CollectionUri "https://dev.azure.com/myorg" -Project "myproject" -Repository "myrepo" -Id 123 -Comment "Refactor this" -FilePath "/src/Program.cs" -StartLine 42 -EndLine 50 -IterationId 3
     Creates an inline comment spanning lines 42-50, anchored to iteration 3 of the PR.
 
 .NOTES
@@ -91,9 +91,9 @@ param(
     [ValidateSet("Basic", "Bearer")]
     [string]$AuthType = "Basic",
 
-    [Parameter(Mandatory = $true, HelpMessage = "Azure DevOps organization name")]
+    [Parameter(Mandatory = $true, HelpMessage = "Azure DevOps collection URI (e.g., https://dev.azure.com/myorg)")]
     [ValidateNotNullOrEmpty()]
-    [string]$Organization,
+    [string]$CollectionUri,
 
     [Parameter(Mandatory = $true, HelpMessage = "Azure DevOps project name")]
     [ValidateNotNullOrEmpty()]
@@ -178,20 +178,37 @@ function Invoke-AzureDevOpsApi {
         return $response
     }
     catch {
-        $statusCode = $_.Exception.Response.StatusCode.value__
-        $errorMessage = $_.ErrorDetails.Message
-        
+        $statusCode = $null
+        $errorDetail = $null
+
+        if ($_.Exception.Response) {
+            $statusCode = $_.Exception.Response.StatusCode.value__
+        }
+        if ($_.ErrorDetails -and $_.ErrorDetails.Message) {
+            $errorDetail = $_.ErrorDetails.Message
+        }
+
+        # Build a descriptive error message with all available context
+        $baseMsg = "Azure DevOps API error"
+        if ($statusCode) {
+            $baseMsg += " (HTTP $statusCode)"
+        }
+        $baseMsg += " calling $Method $Uri"
+
         if ($statusCode -eq 401) {
-            Write-Error "Authentication failed. Please verify your PAT is valid and has appropriate permissions."
+            Write-Error "$baseMsg — Authentication failed. Please verify your token is valid and has appropriate permissions. API response: $errorDetail"
         }
         elseif ($statusCode -eq 404) {
-            Write-Error "Resource not found. Please verify the organization, project, repository, and PR ID."
+            Write-Error "$baseMsg — Resource not found. Please verify the organization, project, repository, and PR ID. API response: $errorDetail"
         }
         elseif ($statusCode -eq 400) {
-            Write-Error "Bad request: $errorMessage"
+            Write-Error "$baseMsg — Bad request. API response: $errorDetail"
+        }
+        elseif ($statusCode) {
+            Write-Error "$baseMsg — API response: $errorDetail"
         }
         else {
-            Write-Error "API request failed: $errorMessage (Status: $statusCode)"
+            Write-Error "$baseMsg — $($_.Exception.Message)"
         }
         return $null
     }
@@ -229,7 +246,7 @@ function Format-AzureDevOpsFilePath {
 #region Main Logic
 
 $headers = Get-AuthorizationHeader -Token $Token -AuthType $AuthType
-$baseUrl = "https://dev.azure.com/$Organization/$Project/_apis/git/repositories/$Repository/pullrequests/$Id"
+$baseUrl = "$CollectionUri/$Project/_apis/git/repositories/$Repository/pullrequests/$Id"
 $apiVersion = "api-version=7.1"
 
 # First, verify the PR exists
@@ -401,7 +418,7 @@ else {
 }
 
 # Provide link to the PR
-$webUrl = "https://dev.azure.com/$Organization/$Project/_git/$Repository/pullrequest/$Id"
+$webUrl = "$CollectionUri/$Project/_git/$Repository/pullrequest/$Id"
 Write-Host "`nView PR: $webUrl" -ForegroundColor Cyan
 
 #endregion

@@ -26,7 +26,7 @@
     Environment Variables Used:
     - AZUREDEVOPS_TOKEN: Authentication token (PAT or OAuth)
     - AZUREDEVOPS_AUTH_TYPE: 'Basic' for PAT, 'Bearer' for OAuth
-    - ORGANIZATION: Azure DevOps organization name
+    - AZUREDEVOPS_COLLECTION_URI: Azure DevOps collection URI
     - PROJECT: Azure DevOps project name
     - REPOSITORY: Repository name
     - PRID: Pull request ID
@@ -54,18 +54,25 @@ try {
     # Read credentials from environment variables
     $token = ${env:AZUREDEVOPS_TOKEN}
     $authType = ${env:AZUREDEVOPS_AUTH_TYPE}
-    $organization = ${env:ORGANIZATION}
+    $collectionUri = ${env:AZUREDEVOPS_COLLECTION_URI}
     $project = ${env:PROJECT}
     $repository = ${env:REPOSITORY}
     $prId = ${env:PRID}
 
     # Validate required environment variables
-    if ([string]::IsNullOrEmpty($token) -or 
-        [string]::IsNullOrEmpty($organization) -or 
-        [string]::IsNullOrEmpty($project) -or 
-        [string]::IsNullOrEmpty($repository) -or 
+    if ([string]::IsNullOrEmpty($token) -or
+        [string]::IsNullOrEmpty($collectionUri) -or
+        [string]::IsNullOrEmpty($project) -or
+        [string]::IsNullOrEmpty($repository) -or
         [string]::IsNullOrEmpty($prId)) {
-        # Missing required env vars - exit silently
+        # Missing required env vars - log a warning so the issue is visible in pipeline logs
+        $missing = @()
+        if ([string]::IsNullOrEmpty($token)) { $missing += 'AZUREDEVOPS_TOKEN' }
+        if ([string]::IsNullOrEmpty($collectionUri)) { $missing += 'AZUREDEVOPS_COLLECTION_URI' }
+        if ([string]::IsNullOrEmpty($project)) { $missing += 'PROJECT' }
+        if ([string]::IsNullOrEmpty($repository)) { $missing += 'REPOSITORY' }
+        if ([string]::IsNullOrEmpty($prId)) { $missing += 'PRID' }
+        Write-Warning "Delete-CopilotComment: Skipping deletion of comment #$CommentId in thread #$ThreadId — required environment variable(s) not set: $($missing -join ', ')"
         exit 0
     }
 
@@ -90,7 +97,7 @@ try {
     }
 
     # Build the API URL for deleting a comment
-    $baseUrl = "https://dev.azure.com/$organization/$project/_apis"
+    $baseUrl = "$collectionUri/$project/_apis"
     $uri = "$baseUrl/git/repositories/$repository/pullrequests/$prId/threads/$ThreadId/comments/$CommentId`?api-version=7.1"
 
     # Send DELETE request
@@ -100,9 +107,29 @@ try {
     Write-Host "Comment #$CommentId in thread #$ThreadId deleted" -ForegroundColor Green
 }
 catch {
-    # Silent failure - do not output error or set non-zero exit code
-    # This ensures Copilot workflow continues even if delete fails
-    Write-Host "Note: Could not delete comment #$CommentId in thread #$ThreadId (this is not critical)" -ForegroundColor DarkGray
+    # Non-blocking failure - log detailed error info but don't fail the pipeline
+    $errorMsg = "Delete-CopilotComment: Could not delete comment #$CommentId in thread #$ThreadId"
+
+    $statusCode = $null
+    $errorDetail = $null
+    if ($_.Exception.Response) {
+        $statusCode = $_.Exception.Response.StatusCode.value__
+    }
+    if ($_.ErrorDetails -and $_.ErrorDetails.Message) {
+        $errorDetail = $_.ErrorDetails.Message
+    }
+
+    if ($statusCode) {
+        $errorMsg += " (HTTP $statusCode)"
+    }
+    if ($errorDetail) {
+        $errorMsg += " — API response: $errorDetail"
+    }
+    elseif ($_.Exception.Message) {
+        $errorMsg += " — $($_.Exception.Message)"
+    }
+
+    Write-Warning $errorMsg
 }
 
 # Always exit with success

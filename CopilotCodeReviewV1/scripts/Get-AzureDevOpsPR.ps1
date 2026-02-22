@@ -14,8 +14,8 @@
     Optional. The type of authentication to use. Valid values: 'Basic' (for PAT) or 'Bearer' (for OAuth/System.AccessToken).
     Default is 'Basic'.
 
-.PARAMETER Organization
-    Required. The Azure DevOps organization name.
+.PARAMETER CollectionUri
+    Required. The Azure DevOps collection URI (e.g., 'https://dev.azure.com/myorg' or 'https://tfs.contoso.com/tfs/DefaultCollection').
 
 .PARAMETER Project
     Required. The Azure DevOps project name.
@@ -30,24 +30,24 @@
     Optional. Specific pull request ID to retrieve detailed information for.
 
 .EXAMPLE
-    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -Organization "myorg" -Project "myproject"
+    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -CollectionUri "https://dev.azure.com/myorg" -Project "myproject"
     Lists all open pull requests in the project using PAT authentication.
 
 .EXAMPLE
-    .\Get-AzureDevOpsPR.ps1 -Token "oauth-token" -AuthType "Bearer" -Organization "myorg" -Project "myproject"
+    .\Get-AzureDevOpsPR.ps1 -Token "oauth-token" -AuthType "Bearer" -CollectionUri "https://dev.azure.com/myorg" -Project "myproject"
     Lists all open pull requests using OAuth/System.AccessToken authentication.
 
 .EXAMPLE
-    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -Organization "myorg" -Project "myproject" -Repository "myrepo"
+    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -CollectionUri "https://dev.azure.com/myorg" -Project "myproject" -Repository "myrepo"
     Lists all open pull requests in a specific repository.
 
 .EXAMPLE
-    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -Organization "myorg" -Project "myproject" -Id 123
+    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -CollectionUri "https://dev.azure.com/myorg" -Project "myproject" -Id 123
     Displays detailed information for pull request #123.
 
 .EXAMPLE
-    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -Organization "myorg" -Project "myproject" -Id 123 -OutputFile "C:\output\pr-details.txt"
-    Writes the pull request details to the specified file.
+    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -CollectionUri "https://tfs.contoso.com/tfs/DefaultCollection" -Project "myproject" -Id 123 -OutputFile "C:\output\pr-details.txt"
+    Writes the pull request details to the specified file (on-prem example).
 
 .NOTES
     Author: Little Fort Software
@@ -65,9 +65,9 @@ param(
     [ValidateSet("Basic", "Bearer")]
     [string]$AuthType = "Basic",
 
-    [Parameter(Mandatory = $true, HelpMessage = "Azure DevOps organization name")]
+    [Parameter(Mandatory = $true, HelpMessage = "Azure DevOps collection URI (e.g., https://dev.azure.com/myorg)")]
     [ValidateNotNullOrEmpty()]
-    [string]$Organization,
+    [string]$CollectionUri,
 
     [Parameter(Mandatory = $true, HelpMessage = "Azure DevOps project name")]
     [ValidateNotNullOrEmpty()]
@@ -144,17 +144,34 @@ function Invoke-AzureDevOpsApi {
         return $response
     }
     catch {
-        $statusCode = $_.Exception.Response.StatusCode.value__
-        $errorMessage = $_.ErrorDetails.Message
-        
+        $statusCode = $null
+        $errorDetail = $null
+
+        if ($_.Exception.Response) {
+            $statusCode = $_.Exception.Response.StatusCode.value__
+        }
+        if ($_.ErrorDetails -and $_.ErrorDetails.Message) {
+            $errorDetail = $_.ErrorDetails.Message
+        }
+
+        # Build a descriptive error message with all available context
+        $baseMsg = "Azure DevOps API error"
+        if ($statusCode) {
+            $baseMsg += " (HTTP $statusCode)"
+        }
+        $baseMsg += " calling GET $Uri"
+
         if ($statusCode -eq 401) {
-            Write-Error "Authentication failed. Please verify your PAT is valid and has appropriate permissions."
+            Write-Error "$baseMsg — Authentication failed. Please verify your token is valid and has appropriate permissions. API response: $errorDetail"
         }
         elseif ($statusCode -eq 404) {
-            Write-Error "Resource not found. Please verify the organization, project, and repository names."
+            Write-Error "$baseMsg — Resource not found. Please verify the organization, project, and repository names. API response: $errorDetail"
+        }
+        elseif ($statusCode) {
+            Write-Error "$baseMsg — API response: $errorDetail"
         }
         else {
-            Write-Error "API request failed: $errorMessage (Status: $statusCode)"
+            Write-Error "$baseMsg — $($_.Exception.Message)"
         }
         return $null
     }
@@ -275,7 +292,7 @@ $script:OutputToFile = -not [string]::IsNullOrEmpty($OutputFile)
 $script:OutputBuilder = [System.Text.StringBuilder]::new()
 
 $headers = Get-AuthorizationHeader -Token $Token -AuthType $AuthType
-$baseUrl = "https://dev.azure.com/$Organization/$Project/_apis"
+$baseUrl = "$CollectionUri/$Project/_apis"
 $apiVersion = "api-version=7.1"
 
 # If a specific PR ID is provided, get detailed information
@@ -487,7 +504,7 @@ if ($Id -gt 0) {
     }
     
     Write-Output-Line "`n[Links]" -ForegroundColor Yellow
-    $webUrl = "https://dev.azure.com/$Organization/$Project/_git/$($pr.repository.name)/pullrequest/$($pr.pullRequestId)"
+    $webUrl = "$CollectionUri/$Project/_git/$($pr.repository.name)/pullrequest/$($pr.pullRequestId)"
     Write-Output-Line "  Web URL: $webUrl"
     
     Write-Output-Line ("`n" + ("=" * 80)) -ForegroundColor DarkGray
@@ -501,16 +518,14 @@ if ($Id -gt 0) {
             $_.comments[0].commentType -ne "system"
         }
         
-        # Filter to active threads that were created by Copilot
+        # Filter to threads that were created by Copilot
         # Match by: Build Service author OR comment contains [Generated by GitHub Copilot]
         $copilotThreads = $commentThreads | Where-Object {
-            $_.status -eq "active" -and (
-                # Check if author is Build Service identity
-                ($_.comments[0].author.displayName -like "*Build Service*") -or
-                ($_.comments[0].author.uniqueName -like "*Build Service*") -or
-                # Check if comment contains Copilot tag
-                ($_.comments[0].content -like "*[Generated by GitHub Copilot]*")
-            )
+            # Check if author is Build Service identity
+            ($_.comments[0].author.displayName -like "*Build Service*") -or
+            ($_.comments[0].author.uniqueName -like "*Build Service*") -or
+            # Check if comment contains Copilot tag
+            ($_.comments[0].content -like "*[Generated by GitHub Copilot]*")
         }
         
         if ($copilotThreads -and $copilotThreads.Count -gt 0) {
@@ -519,7 +534,7 @@ if ($Id -gt 0) {
             $jsonThreads = $copilotThreads | ForEach-Object {
                 $thread = $_
                 $firstComment = $thread.comments | Select-Object -First 1
-                
+
                 # Extract file path and line info
                 $filePath = $null
                 $startLine = $null
@@ -532,23 +547,34 @@ if ($Id -gt 0) {
                         $startLine = $thread.threadContext.leftFileStart.line
                     }
                 }
-                
-                # Truncate content for JSON output
-                $content = $firstComment.content
-                if ($content -and $content.Length -gt 200) {
-                    $content = $content.Substring(0, 200) + "..."
+
+                # Build replies array from all comments after the first
+                $replies = @()
+                $allComments = @($thread.comments)
+                if ($allComments.Count -gt 1) {
+                    $replies = $allComments | Select-Object -Skip 1 | Where-Object {
+                        $_.commentType -ne "system"
+                    } | ForEach-Object {
+                        @{
+                            author        = $_.author.displayName
+                            content       = $_.content
+                            publishedDate = $_.publishedDate
+                        }
+                    }
+                    if ($null -eq $replies) { $replies = @() }
                 }
-                
+
                 @{
                     threadId  = $thread.id
                     status    = $thread.status
                     filePath  = $filePath
                     startLine = $startLine
-                    content   = $content
+                    content   = $firstComment.content
+                    replies   = @($replies)
                 }
             }
-            
-            $jsonOutput = $jsonThreads | ConvertTo-Json -Compress
+
+            $jsonOutput = $jsonThreads | ConvertTo-Json -Compress -Depth 5
             Write-Output-Line $jsonOutput
             Write-Output-Line "=== END COPILOT COMMENT THREADS ===" -ForegroundColor Cyan
         }

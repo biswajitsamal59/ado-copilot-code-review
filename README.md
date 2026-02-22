@@ -152,7 +152,8 @@ steps:
 | `githubPat` | Yes | - | GitHub Personal Access Token with Copilot access |
 | `useSystemAccessToken` | No | `false` | Use pipeline's System.AccessToken instead of a PAT (recommended for Azure DevOps Services) |
 | `azureDevOpsPat` | Conditional | - | Azure DevOps PAT for API access. Required if `useSystemAccessToken` is `false`. |
-| `organization` | No | `$(System.CollectionUri)` (inferred) | Azure DevOps organization name |
+| `organization` | No | `$(System.CollectionUri)` (inferred) | Azure DevOps organization name for cloud-hosted teams |
+| `collectionUri` | No | `$(System.CollectionUri)` | Azure DevOps collection URI for on-prem instances |
 | `project` | No | `$(System.TeamProject)` | Azure DevOps project name |
 | `repository` | No | `$(Build.Repository.Name)` | Repository name |
 | `pullRequestId` | No | `$(System.PullRequest.PullRequestId)` | PR ID (auto-detected in PR builds) |
@@ -160,6 +161,8 @@ steps:
 | `model` | No | - | Preferred Copilot model to use (see valid options below) |
 | `promptFile` | No | - | Path to custom prompt file |
 | `prompt` | No | - | Inline custom prompt (overrides `promptFile`) |
+| `promptFileRaw` | No | - | _(Advanced)_ Path to custom prompt file that will be passed as-is with no supportive direction. |
+| `promptRaw` | No | - | _(Advanced)_ Inline custom prompt that will be passed as-is with no supportive direction. |
 | `authors` | No | - | Comma-separated list of email addresses to filter reviews (see below) |
 
 ### Copilot Models
@@ -246,6 +249,8 @@ Create a personal access token:
    - **Repository access:** Public
    - **Permission:** Copilot Requests
 3. Store the token as a secret variable in your Azure DevOps pipeline
+
+> **IMPORTANT**: If your user account is part of a GitHub organization, ensure the organization admin goes to **GitHub Policies** > **Copilot** > **Copilot CLI** and sets the policy to **Enabled everywhere**
 
 ### Storing Tokens in Azure DevOps
 

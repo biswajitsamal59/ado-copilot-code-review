@@ -10,7 +10,7 @@
     "version": {
         "Major": 1,
         "Minor": 5,
-        "Patch": 0
+        "Patch": 1
     },
     "instanceNameFormat": "Copilot Code Review",
     "minimumAgentVersion": "2.182.1",
@@ -43,7 +43,15 @@
             "label": "Organization",
             "required": false,
             "defaultValue": "",
-            "helpMarkDown": "The Azure DevOps organization name (e.g., 'myorg' from https://dev.azure.com/myorg). If not specified, will be automatically detected from the pipeline context."
+            "helpMarkDown": "The Azure DevOps organization name for cloud-hosted instances (e.g., 'myorg' from https://dev.azure.com/myorg). For Azure DevOps Server (on-prem), use 'collectionUri' instead. If neither is specified, auto-detected from the pipeline context."
+        },
+        {
+            "name": "collectionUri",
+            "type": "string",
+            "label": "Collection URI",
+            "required": false,
+            "defaultValue": "",
+            "helpMarkDown": "The full Azure DevOps collection URI (e.g., 'https://dev.azure.com/myorg', 'https://tfs.contoso.com/tfs/DefaultCollection'). If not specified, will be automatically detected from System.CollectionUri. Use this for Azure DevOps Server (on-prem) installations."
         },
         {
             "name": "project",
@@ -104,6 +112,26 @@
                 "rows": "10",
                 "maxLength": "5000"
             }
+        },
+        {
+            "name": "promptRaw",
+            "type": "multiLine",
+            "label": "Raw Prompt",
+            "required": false,
+            "defaultValue": "",
+            "helpMarkDown": "Optional. A raw prompt to pass directly to the Copilot CLI with no modification. Cannot be combined with other prompt inputs (prompt, promptFile, promptFileRaw).",
+            "properties": {
+                "rows": "10",
+                "maxLength": "5000"
+            }
+        },
+        {
+            "name": "promptFileRaw",
+            "type": "filePath",
+            "label": "Raw Prompt File",
+            "required": false,
+            "defaultValue": "",
+            "helpMarkDown": "Optional. Path to a file containing a raw prompt to pass directly to the Copilot CLI with no modification. Cannot be combined with other prompt inputs (prompt, promptFile, promptRaw)."
         },
         {
             "name": "authors",

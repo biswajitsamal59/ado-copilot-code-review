@@ -44,7 +44,7 @@
     Environment Variables Used:
     - AZUREDEVOPS_TOKEN: Authentication token (PAT or OAuth)
     - AZUREDEVOPS_AUTH_TYPE: 'Basic' for PAT, 'Bearer' for OAuth
-    - ORGANIZATION: Azure DevOps organization name
+    - AZUREDEVOPS_COLLECTION_URI: Azure DevOps collection URI
     - PROJECT: Azure DevOps project name
     - REPOSITORY: Repository name
     - PRID: Pull request ID
@@ -80,7 +80,7 @@ Write-Host "Posting comment with thread status: $Status" -ForegroundColor DarkGr
 $params = @{
     Token        = ${env:AZUREDEVOPS_TOKEN}
     AuthType     = ${env:AZUREDEVOPS_AUTH_TYPE}
-    Organization = ${env:ORGANIZATION}
+    CollectionUri = ${env:AZUREDEVOPS_COLLECTION_URI}
     Project      = ${env:PROJECT}
     Repository   = ${env:REPOSITORY}
     Id           = ${env:PRID}
