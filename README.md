@@ -152,7 +152,8 @@ steps:
 | `githubPat` | Yes | - | GitHub Personal Access Token with Copilot access |
 | `useSystemAccessToken` | No | `false` | Use pipeline's System.AccessToken instead of a PAT (recommended for Azure DevOps Services) |
 | `azureDevOpsPat` | Conditional | - | Azure DevOps PAT for API access. Required if `useSystemAccessToken` is `false`. |
-| `organization` | No | `$(System.CollectionUri)` (inferred) | Azure DevOps organization name |
+| `organization` | No | `$(System.CollectionUri)` (inferred) | Azure DevOps organization name for cloud-hosted teams |
+| `collectionUri` | No | `$(System.CollectionUri)` | Azure DevOps collection URI for on-prem instances |
 | `project` | No | `$(System.TeamProject)` | Azure DevOps project name |
 | `repository` | No | `$(Build.Repository.Name)` | Repository name |
 | `pullRequestId` | No | `$(System.PullRequest.PullRequestId)` | PR ID (auto-detected in PR builds) |

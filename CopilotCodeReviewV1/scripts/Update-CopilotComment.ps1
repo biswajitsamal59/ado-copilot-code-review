@@ -43,7 +43,7 @@
     Environment Variables Used:
     - AZUREDEVOPS_TOKEN: Authentication token (PAT or OAuth)
     - AZUREDEVOPS_AUTH_TYPE: 'Basic' for PAT, 'Bearer' for OAuth
-    - ORGANIZATION: Azure DevOps organization name
+    - AZUREDEVOPS_COLLECTION_URI: Azure DevOps collection URI
     - PROJECT: Azure DevOps project name
     - REPOSITORY: Repository name
     - PRID: Pull request ID
@@ -86,21 +86,21 @@ try {
     # Read credentials from environment variables
     $token = ${env:AZUREDEVOPS_TOKEN}
     $authType = ${env:AZUREDEVOPS_AUTH_TYPE}
-    $organization = ${env:ORGANIZATION}
+    $collectionUri = ${env:AZUREDEVOPS_COLLECTION_URI}
     $project = ${env:PROJECT}
     $repository = ${env:REPOSITORY}
     $prId = ${env:PRID}
 
     # Validate required environment variables
     if ([string]::IsNullOrEmpty($token) -or
-        [string]::IsNullOrEmpty($organization) -or
+        [string]::IsNullOrEmpty($collectionUri) -or
         [string]::IsNullOrEmpty($project) -or
         [string]::IsNullOrEmpty($repository) -or
         [string]::IsNullOrEmpty($prId)) {
         # Missing required env vars - log a warning so the issue is visible in pipeline logs
         $missing = @()
         if ([string]::IsNullOrEmpty($token)) { $missing += 'AZUREDEVOPS_TOKEN' }
-        if ([string]::IsNullOrEmpty($organization)) { $missing += 'ORGANIZATION' }
+        if ([string]::IsNullOrEmpty($collectionUri)) { $missing += 'AZUREDEVOPS_COLLECTION_URI' }
         if ([string]::IsNullOrEmpty($project)) { $missing += 'PROJECT' }
         if ([string]::IsNullOrEmpty($repository)) { $missing += 'REPOSITORY' }
         if ([string]::IsNullOrEmpty($prId)) { $missing += 'PRID' }
@@ -128,7 +128,7 @@ try {
         }
     }
 
-    $baseUrl = "https://dev.azure.com/$organization/$project/_apis"
+    $baseUrl = "$collectionUri/$project/_apis"
 
     # Update thread status if specified
     if (-not [string]::IsNullOrEmpty($Status)) {

@@ -43,7 +43,15 @@
             "label": "Organization",
             "required": false,
             "defaultValue": "",
-            "helpMarkDown": "The Azure DevOps organization name (e.g., 'myorg' from https://dev.azure.com/myorg). If not specified, will be automatically detected from the pipeline context."
+            "helpMarkDown": "The Azure DevOps organization name for cloud-hosted instances (e.g., 'myorg' from https://dev.azure.com/myorg). For Azure DevOps Server (on-prem), use 'collectionUri' instead. If neither is specified, auto-detected from the pipeline context."
+        },
+        {
+            "name": "collectionUri",
+            "type": "string",
+            "label": "Collection URI",
+            "required": false,
+            "defaultValue": "",
+            "helpMarkDown": "The full Azure DevOps collection URI (e.g., 'https://dev.azure.com/myorg', 'https://tfs.contoso.com/tfs/DefaultCollection'). If not specified, will be automatically detected from System.CollectionUri. Use this for Azure DevOps Server (on-prem) installations."
         },
         {
             "name": "project",

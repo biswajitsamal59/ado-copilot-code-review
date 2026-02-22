@@ -14,8 +14,8 @@
     Optional. The type of authentication to use. Valid values: 'Basic' (for PAT) or 'Bearer' (for OAuth/System.AccessToken).
     Default is 'Basic'.
 
-.PARAMETER Organization
-    Required. The Azure DevOps organization name.
+.PARAMETER CollectionUri
+    Required. The Azure DevOps collection URI (e.g., 'https://dev.azure.com/myorg' or 'https://tfs.contoso.com/tfs/DefaultCollection').
 
 .PARAMETER Project
     Required. The Azure DevOps project name.
@@ -30,24 +30,24 @@
     Optional. Specific pull request ID to retrieve detailed information for.
 
 .EXAMPLE
-    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -Organization "myorg" -Project "myproject"
+    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -CollectionUri "https://dev.azure.com/myorg" -Project "myproject"
     Lists all open pull requests in the project using PAT authentication.
 
 .EXAMPLE
-    .\Get-AzureDevOpsPR.ps1 -Token "oauth-token" -AuthType "Bearer" -Organization "myorg" -Project "myproject"
+    .\Get-AzureDevOpsPR.ps1 -Token "oauth-token" -AuthType "Bearer" -CollectionUri "https://dev.azure.com/myorg" -Project "myproject"
     Lists all open pull requests using OAuth/System.AccessToken authentication.
 
 .EXAMPLE
-    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -Organization "myorg" -Project "myproject" -Repository "myrepo"
+    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -CollectionUri "https://dev.azure.com/myorg" -Project "myproject" -Repository "myrepo"
     Lists all open pull requests in a specific repository.
 
 .EXAMPLE
-    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -Organization "myorg" -Project "myproject" -Id 123
+    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -CollectionUri "https://dev.azure.com/myorg" -Project "myproject" -Id 123
     Displays detailed information for pull request #123.
 
 .EXAMPLE
-    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -Organization "myorg" -Project "myproject" -Id 123 -OutputFile "C:\output\pr-details.txt"
-    Writes the pull request details to the specified file.
+    .\Get-AzureDevOpsPR.ps1 -Token "your-pat-token" -CollectionUri "https://tfs.contoso.com/tfs/DefaultCollection" -Project "myproject" -Id 123 -OutputFile "C:\output\pr-details.txt"
+    Writes the pull request details to the specified file (on-prem example).
 
 .NOTES
     Author: Little Fort Software
@@ -65,9 +65,9 @@ param(
     [ValidateSet("Basic", "Bearer")]
     [string]$AuthType = "Basic",
 
-    [Parameter(Mandatory = $true, HelpMessage = "Azure DevOps organization name")]
+    [Parameter(Mandatory = $true, HelpMessage = "Azure DevOps collection URI (e.g., https://dev.azure.com/myorg)")]
     [ValidateNotNullOrEmpty()]
-    [string]$Organization,
+    [string]$CollectionUri,
 
     [Parameter(Mandatory = $true, HelpMessage = "Azure DevOps project name")]
     [ValidateNotNullOrEmpty()]
@@ -292,7 +292,7 @@ $script:OutputToFile = -not [string]::IsNullOrEmpty($OutputFile)
 $script:OutputBuilder = [System.Text.StringBuilder]::new()
 
 $headers = Get-AuthorizationHeader -Token $Token -AuthType $AuthType
-$baseUrl = "https://dev.azure.com/$Organization/$Project/_apis"
+$baseUrl = "$CollectionUri/$Project/_apis"
 $apiVersion = "api-version=7.1"
 
 # If a specific PR ID is provided, get detailed information
@@ -504,7 +504,7 @@ if ($Id -gt 0) {
     }
     
     Write-Output-Line "`n[Links]" -ForegroundColor Yellow
-    $webUrl = "https://dev.azure.com/$Organization/$Project/_git/$($pr.repository.name)/pullrequest/$($pr.pullRequestId)"
+    $webUrl = "$CollectionUri/$Project/_git/$($pr.repository.name)/pullrequest/$($pr.pullRequestId)"
     Write-Output-Line "  Web URL: $webUrl"
     
     Write-Output-Line ("`n" + ("=" * 80)) -ForegroundColor DarkGray

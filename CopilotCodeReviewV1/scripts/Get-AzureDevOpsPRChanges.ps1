@@ -13,8 +13,8 @@
     Optional. The type of authentication to use. Valid values: 'Basic' (for PAT) or 'Bearer' (for OAuth/System.AccessToken).
     Default is 'Basic'.
 
-.PARAMETER Organization
-    Required. The Azure DevOps organization name.
+.PARAMETER CollectionUri
+    Required. The Azure DevOps collection URI (e.g., 'https://dev.azure.com/myorg' or 'https://tfs.contoso.com/tfs/DefaultCollection').
 
 .PARAMETER Project
     Required. The Azure DevOps project name.
@@ -26,16 +26,16 @@
     Required. The pull request ID to retrieve changes for.
 
 .EXAMPLE
-    .\Get-AzureDevOpsPRChanges.ps1 -Token "your-pat" -Organization "myorg" -Project "myproject" -Repository "myrepo" -Id 123
+    .\Get-AzureDevOpsPRChanges.ps1 -Token "your-pat" -CollectionUri "https://dev.azure.com/myorg" -Project "myproject" -Repository "myrepo" -Id 123
     Retrieves the commits and changed files from the most recent iteration of PR #123.
 
 .EXAMPLE
-    .\Get-AzureDevOpsPRChanges.ps1 -Token "oauth-token" -AuthType "Bearer" -Organization "myorg" -Project "myproject" -Repository "myrepo" -Id 123
+    .\Get-AzureDevOpsPRChanges.ps1 -Token "oauth-token" -AuthType "Bearer" -CollectionUri "https://dev.azure.com/myorg" -Project "myproject" -Repository "myrepo" -Id 123
     Retrieves PR changes using OAuth/System.AccessToken authentication.
 
 .EXAMPLE
-    .\Get-AzureDevOpsPRChanges.ps1 -Token "your-pat" -Organization "myorg" -Project "myproject" -Repository "myrepo" -Id 123 -OutputFile "C:\output\pr-changes.txt"
-    Writes the pull request changes to the specified file.
+    .\Get-AzureDevOpsPRChanges.ps1 -Token "your-pat" -CollectionUri "https://tfs.contoso.com/tfs/DefaultCollection" -Project "myproject" -Repository "myrepo" -Id 123 -OutputFile "C:\output\pr-changes.txt"
+    Writes the pull request changes to the specified file (on-prem example).
 
 .NOTES
     Author: Little Fort Software
@@ -53,9 +53,9 @@ param(
     [ValidateSet("Basic", "Bearer")]
     [string]$AuthType = "Basic",
 
-    [Parameter(Mandatory = $true, HelpMessage = "Azure DevOps organization name")]
+    [Parameter(Mandatory = $true, HelpMessage = "Azure DevOps collection URI (e.g., https://dev.azure.com/myorg)")]
     [ValidateNotNullOrEmpty()]
-    [string]$Organization,
+    [string]$CollectionUri,
 
     [Parameter(Mandatory = $true, HelpMessage = "Azure DevOps project name")]
     [ValidateNotNullOrEmpty()]
@@ -203,7 +203,7 @@ $script:OutputToFile = -not [string]::IsNullOrEmpty($OutputFile)
 $script:OutputBuilder = [System.Text.StringBuilder]::new()
 
 $headers = Get-AuthorizationHeader -Token $Token -AuthType $AuthType
-$baseUrl = "https://dev.azure.com/$Organization/$Project/_apis/git/repositories/$Repository/pullrequests/$Id"
+$baseUrl = "$CollectionUri/$Project/_apis/git/repositories/$Repository/pullrequests/$Id"
 $apiVersion = "api-version=7.1"
 
 # Verify the PR exists
@@ -317,7 +317,7 @@ else {
 Write-Output-Line ("`n" + ("=" * 80)) -ForegroundColor DarkGray
 
 # Provide link to the PR
-$webUrl = "https://dev.azure.com/$Organization/$Project/_git/$Repository/pullrequest/$Id"
+$webUrl = "$CollectionUri/$Project/_git/$Repository/pullrequest/$Id"
 Write-Host "`nView PR: $webUrl" -ForegroundColor Cyan
 if ($script:OutputToFile) {
     $script:OutputBuilder.AppendLine("`nView PR: $webUrl") | Out-Null

@@ -103,28 +103,33 @@ async function run(): Promise<void> {
         
         // Get inputs with defaults from pipeline variables
         let organization = tl.getInput('organization');
+        let collectionUri = tl.getInput('collectionUri');
         let project = tl.getInput('project');
         let repository = tl.getInput('repository');
 
-        // Auto-detect organization from System.CollectionUri if not provided
-        // CollectionUri format: https://dev.azure.com/orgname/ or https://orgname.visualstudio.com/
-        if (!organization) {
-            const collectionUri = tl.getVariable('System.CollectionUri');
-            if (collectionUri) {
-                const devAzureMatch = collectionUri.match(/https:\/\/dev\.azure\.com\/([^\/]+)/);
-                const vstsMatch = collectionUri.match(/https:\/\/([^\.]+)\.visualstudio\.com/);
-                if (devAzureMatch) {
-                    organization = devAzureMatch[1];
-                    console.log(`Auto-detected organization from CollectionUri: ${organization}`);
-                } else if (vstsMatch) {
-                    organization = vstsMatch[1];
-                    console.log(`Auto-detected organization from CollectionUri: ${organization}`);
-                }
+        // Resolve the collection URI using priority chain:
+        // 1. Explicit collectionUri input
+        // 2. organization input -> construct https://dev.azure.com/{org}
+        // 3. System.CollectionUri pipeline variable (used directly)
+        let resolvedCollectionUri: string | undefined;
+
+        if (collectionUri) {
+            resolvedCollectionUri = collectionUri.replace(/\/+$/, '');
+            console.log(`Using explicit collection URI: ${resolvedCollectionUri}`);
+        } else if (organization) {
+            resolvedCollectionUri = `https://dev.azure.com/${organization}`;
+            console.log(`Constructed collection URI from organization: ${resolvedCollectionUri}`);
+        } else {
+            const systemCollectionUri = tl.getVariable('System.CollectionUri');
+            if (systemCollectionUri) {
+                resolvedCollectionUri = systemCollectionUri.replace(/\/+$/, '');
+                console.log(`Auto-detected collection URI from System.CollectionUri: ${resolvedCollectionUri}`);
             }
         }
 
-        if (!organization) {
-            tl.setResult(tl.TaskResult.Failed, 'Organization is required. Either provide it as an input or ensure System.CollectionUri is available.');
+        if (!resolvedCollectionUri) {
+            tl.setResult(tl.TaskResult.Failed,
+                'Collection URI could not be determined. Provide collectionUri, organization, or ensure System.CollectionUri is available.');
             return;
         }
 
@@ -160,7 +165,7 @@ async function run(): Promise<void> {
         console.log('='.repeat(60));
         console.log('Copilot Code Review Task');
         console.log('='.repeat(60));
-        console.log(`Organization: ${organization}`);
+        console.log(`Collection URI: ${resolvedCollectionUri}`);
         console.log(`Project: ${project}`);
         console.log(`Repository: ${repository}`);
         console.log(`Pull Request ID: ${pullRequestId}`);
@@ -174,7 +179,7 @@ async function run(): Promise<void> {
         process.env['GH_TOKEN'] = githubPat;
         process.env['AZUREDEVOPS_TOKEN'] = azureDevOpsToken;
         process.env['AZUREDEVOPS_AUTH_TYPE'] = azureDevOpsAuthType;
-        process.env['ORGANIZATION'] = organization;
+        process.env['AZUREDEVOPS_COLLECTION_URI'] = resolvedCollectionUri;
         process.env['PROJECT'] = project;
         process.env['REPOSITORY'] = repository;
         process.env['PRID'] = pullRequestId;
@@ -200,7 +205,7 @@ async function run(): Promise<void> {
         await runPowerShellScript(prDetailsScript, [
             `-Token "${azureDevOpsToken}"`,
             `-AuthType "${azureDevOpsAuthType}"`,
-            `-Organization "${organization}"`,
+            `-CollectionUri "${resolvedCollectionUri}"`,
             `-Project "${project}"`,
             `-Repository "${repository}"`,
             `-Id ${pullRequestId}`,
@@ -216,7 +221,7 @@ async function run(): Promise<void> {
         await runPowerShellScript(prChangesScript, [
             `-Token "${azureDevOpsToken}"`,
             `-AuthType "${azureDevOpsAuthType}"`,
-            `-Organization "${organization}"`,
+            `-CollectionUri "${resolvedCollectionUri}"`,
             `-Project "${project}"`,
             `-Repository "${repository}"`,
             `-Id ${pullRequestId}`,
