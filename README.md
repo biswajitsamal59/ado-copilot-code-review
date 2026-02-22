@@ -249,6 +249,8 @@ Create a personal access token:
    - **Permission:** Copilot Requests
 3. Store the token as a secret variable in your Azure DevOps pipeline
 
+> **IMPORTANT**: If your user account is part of a GitHub organization, ensure the organization admin goes to **GitHub Policies** > **Copilot** > **Copilot CLI** and sets the policy to **Enabled everywhere**
+
 ### Storing Tokens in Azure DevOps
 
 1. Navigate to **Pipelines** > **Library**
