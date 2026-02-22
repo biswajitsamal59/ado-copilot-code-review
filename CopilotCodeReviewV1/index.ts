@@ -144,6 +144,8 @@ async function run(): Promise<void> {
         const model = tl.getInput('model');
         const promptFile = tl.getInput('promptFile');
         const prompt = tl.getInput('prompt');
+        const promptRaw = tl.getInput('promptRaw');
+        const promptFileRaw = tl.getInput('promptFileRaw');
 
         // If PR ID not provided, try to get from pipeline variable
         if (!pullRequestId) {
@@ -236,16 +238,50 @@ async function run(): Promise<void> {
         console.log('\n[Step 4/4] Running Copilot code review...');
         
         // Determine the prompt file to use
-        let promptFilePath: string;
+        let promptFilePath: string = '';
         let customPromptText: string | null = null;
-        
-        // Helper to check if promptFile is actually set (filePath inputs return working dir when empty)
-        const isPromptFileSet = promptFile && 
-            fs.existsSync(promptFile) && 
+
+        // Helper to check if filePath inputs are actually set (filePath inputs return working dir when empty)
+        const isPromptFileSet = promptFile &&
+            fs.existsSync(promptFile) &&
             fs.statSync(promptFile).isFile();
-        
-        if (prompt) {
-            // Direct prompt input takes precedence
+        const isPromptFileRawSet = promptFileRaw &&
+            fs.existsSync(promptFileRaw) &&
+            fs.statSync(promptFileRaw).isFile();
+
+        // Validate that only one prompt input is provided
+        const activePromptInputs: string[] = [];
+        if (prompt) activePromptInputs.push('prompt');
+        if (isPromptFileSet) activePromptInputs.push('promptFile');
+        if (promptRaw) activePromptInputs.push('promptRaw');
+        if (isPromptFileRawSet) activePromptInputs.push('promptFileRaw');
+
+        if (activePromptInputs.length > 1) {
+            tl.setResult(tl.TaskResult.Failed,
+                `Multiple prompt inputs are set (${activePromptInputs.join(', ')}). Only one prompt input should be provided. ` +
+                'Please use only one of: prompt, promptFile, promptRaw, or promptFileRaw.');
+            return;
+        }
+
+        if (promptRaw) {
+            // Raw prompt: pass directly to CLI with no modification
+            console.log('Using raw prompt from input.');
+            promptFilePath = path.join(workingDirectory, '_copilot_prompt.txt');
+            fs.writeFileSync(promptFilePath, promptRaw, 'utf8');
+            console.log('\nRAW PROMPT:\n' + promptRaw + '\n\n');
+        } else if (isPromptFileRawSet) {
+            // Raw prompt file: use file contents as-is with no modification
+            console.log(`Using raw prompt from file: ${promptFileRaw}`);
+            const fileContent = fs.readFileSync(promptFileRaw!, 'utf8');
+            if (!fileContent.trim()) {
+                tl.setResult(tl.TaskResult.Failed, `Raw prompt file is empty: ${promptFileRaw}`);
+                return;
+            }
+            promptFilePath = path.join(workingDirectory, '_copilot_prompt.txt');
+            fs.writeFileSync(promptFilePath, fileContent, 'utf8');
+            console.log('\nRAW PROMPT:\n' + fileContent + '\n\n');
+        } else if (prompt) {
+            // Direct prompt input: merge with template
             console.log('Using custom prompt from input.');
             if (prompt.includes('"')) {
                 tl.setResult(tl.TaskResult.Failed, 'Custom prompts cannot include double quotes ("). Please remove any double quotes from your prompt input.');
@@ -253,9 +289,9 @@ async function run(): Promise<void> {
             }
             customPromptText = prompt;
         } else if (isPromptFileSet) {
-            // Read from prompt file
+            // Read from prompt file: merge with template
             console.log(`Using custom prompt from file: ${promptFile}`);
-            const fileContent = fs.readFileSync(promptFile, 'utf8').trim();
+            const fileContent = fs.readFileSync(promptFile!, 'utf8').trim();
             if (!fileContent) {
                 tl.setResult(tl.TaskResult.Failed, `Prompt file is empty: ${promptFile}`);
                 return;
@@ -273,12 +309,12 @@ async function run(): Promise<void> {
             const templateContent = fs.readFileSync(customPromptTemplate, 'utf8');
             const mergedPrompt = templateContent.replace('%CUSTOMPROMPT%', customPromptText);
             console.log('\nCUSTOM PROMPT:\n' + mergedPrompt + '\n\n');
-            
+
             // Write merged prompt to a temp file in the working directory
             promptFilePath = path.join(workingDirectory, '_copilot_prompt.txt');
             fs.writeFileSync(promptFilePath, mergedPrompt, 'utf8');
             console.log('Custom prompt merged with instruction template.');
-        } else {
+        } else if (!promptRaw && !isPromptFileRawSet) {
             // Use default prompt file bundled with the task
             promptFilePath = path.join(scriptsDir, 'prompt.txt');
             console.log('Using default prompt.');

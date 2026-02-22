@@ -10,7 +10,7 @@
     "version": {
         "Major": 1,
         "Minor": 5,
-        "Patch": 0
+        "Patch": 1
     },
     "instanceNameFormat": "Copilot Code Review",
     "minimumAgentVersion": "2.182.1",
@@ -104,6 +104,26 @@
                 "rows": "10",
                 "maxLength": "5000"
             }
+        },
+        {
+            "name": "promptRaw",
+            "type": "multiLine",
+            "label": "Raw Prompt",
+            "required": false,
+            "defaultValue": "",
+            "helpMarkDown": "Optional. A raw prompt to pass directly to the Copilot CLI with no modification. Cannot be combined with other prompt inputs (prompt, promptFile, promptFileRaw).",
+            "properties": {
+                "rows": "10",
+                "maxLength": "5000"
+            }
+        },
+        {
+            "name": "promptFileRaw",
+            "type": "filePath",
+            "label": "Raw Prompt File",
+            "required": false,
+            "defaultValue": "",
+            "helpMarkDown": "Optional. Path to a file containing a raw prompt to pass directly to the Copilot CLI with no modification. Cannot be combined with other prompt inputs (prompt, promptFile, promptRaw)."
         },
         {
             "name": "authors",
