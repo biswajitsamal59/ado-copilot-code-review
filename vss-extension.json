@@ -1,9 +1,9 @@
 {
     "$schema": "http://json.schemastore.org/vss-extension",
     "manifestVersion": 1,
-    "id": "ado-copilot-code-review",
-    "name": "Copilot Code Review",
-    "version": "1.5.2",
+    "id": "copilot-pr-review",
+    "name": "Copilot PR Review",
+    "version": "1.0.0",
     "publisher": "LittleFortSoftware",
     "public": true,
     "targets": [
@@ -11,7 +11,7 @@
             "id": "Microsoft.VisualStudio.Services"
         }
     ],
-    "description": "Automated pull request code reviews powered by agentic AI. Get feedback on your PRs directly in Azure DevOps by leveraging the official GitHub Copilot CLI or Claude Code.",
+    "description": "Automated pull request code reviews powered by agentic AI. Get feedback on your PRs directly in Azure DevOps by leveraging the official GitHub Copilot CLI.",
     "categories": [
         "Azure Pipelines"
     ],
@@ -52,18 +52,18 @@
     },
     "files": [
         {
-            "path": "CopilotCodeReviewV1"
+            "path": "CopilotPRReviewV1"
         }
     ],
     "contributions": [
         {
-            "id": "copilot-code-review-task",
+            "id": "copilot-pr-review-task",
             "type": "ms.vss-distributed-task.task",
             "targets": [
                 "ms.vss-distributed-task.tasks"
             ],
             "properties": {
-                "name": "CopilotCodeReviewV1"
+                "name": "CopilotPRReviewV1"
             }
         }
     ]
