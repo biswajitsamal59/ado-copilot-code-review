@@ -4,7 +4,7 @@
     "id": "copilot-pr-review-dev",
     "name": "Copilot PR Review (Dev)",
     "version": "0.3.8",
-    "publisher": "LittleFortSoftware",
+    "publisher": "Biswajit",
     "public": false,
     "targets": [
         {

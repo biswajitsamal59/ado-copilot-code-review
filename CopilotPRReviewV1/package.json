@@ -18,7 +18,7 @@
         "pull-request",
         "ai"
     ],
-    "author": "LittleFortSoftware",
+    "author": "Biswajit",
     "license": "MIT",
     "dependencies": {
         "azure-pipelines-task-lib": "^4.17.3",

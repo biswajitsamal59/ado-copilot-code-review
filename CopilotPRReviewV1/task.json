@@ -6,7 +6,7 @@
     "description": "Automated pull request code reviews powered by the GitHub Copilot CLI",
     "helpMarkDown": "[Learn more about this task](https://github.com/little-fort/ado-copilot-code-review)",
     "category": "Utility",
-    "author": "LittleFortSoftware",
+    "author": "Biswajit",
     "version": {
         "Major": 1,
         "Minor": 0,
