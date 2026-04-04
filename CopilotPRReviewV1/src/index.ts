@@ -123,7 +123,7 @@ async function run(): Promise<void> {
         const includeWorkItems = tl.getBoolInput('includeWorkItems', false);
 
         console.log('='.repeat(60));
-        console.log('Copilot Code Review Task');
+        console.log('Copilot PR Review Task');
         console.log('='.repeat(60));
         console.log(`Collection URI:  ${resolvedCollectionUri}`);
         console.log(`Project:         ${project}`);
@@ -171,7 +171,6 @@ async function run(): Promise<void> {
         console.log(`Iteration ID set to: ${context.iterationId}`);
 
         // ── Step 5: Run Copilot code review ───────────────────────────────────
-        console.log('\n[Step 5/5] Running Copilot code review...');
 
         const promptFilePath = resolvePrompt({
             promptInput: tl.getInput('prompt') || undefined,
@@ -186,7 +185,48 @@ async function run(): Promise<void> {
         writeAgentScriptWrappers(workingDirectory, scriptsDir);
 
         const timeoutMs = timeoutMinutes * 60 * 1000;
-        await runCopilotCli(promptFilePath, model || undefined, workingDirectory, timeoutMs);
+        const { chunks } = context;
+
+        if (chunks.length === 1) {
+            // Single chunk — standard review
+            console.log('\n[Step 5/5] Running Copilot code review...');
+
+            // Write Iteration_Details.txt as the standard name the prompt references
+            copyIfNeeded(chunks[0].iterationDetailsPath, path.join(workingDirectory, 'Iteration_Details.txt'));
+
+            await runCopilotCli(promptFilePath, model || undefined, workingDirectory, timeoutMs);
+        } else {
+            // Multiple chunks — run one agent per chunk
+            console.log(`\n[Step 5/5] Running chunked Copilot code review (${chunks.length} chunks)...`);
+            const perChunkTimeout = Math.max(timeoutMs / chunks.length, 5 * 60 * 1000); // min 5 min per chunk
+
+            for (const chunk of chunks) {
+                const chunkNum = chunk.chunkIndex + 1;
+                console.log(`\n${'─'.repeat(60)}`);
+                console.log(`Chunk ${chunkNum}/${chunk.totalChunks}: Reviewing ${chunk.fileCount} file(s)...`);
+                console.log('─'.repeat(60));
+
+                // Overwrite Iteration_Details.txt with this chunk's content
+                // so the prompt's reference to "Iteration_Details.txt" always works
+                const iterationDetailsTarget = path.join(workingDirectory, 'Iteration_Details.txt');
+                fs.copyFileSync(chunk.iterationDetailsPath, iterationDetailsTarget);
+
+                // First chunk uses the original prompt (handles thread resolution + review).
+                // Subsequent chunks use a continuation prompt (review only, skip thread resolution).
+                const chunkPromptPath = chunkNum === 1
+                    ? promptFilePath
+                    : buildChunkContinuationPrompt(promptFilePath, chunkNum, chunk.totalChunks, workingDirectory);
+
+                try {
+                    await runCopilotCli(chunkPromptPath, model || undefined, workingDirectory, perChunkTimeout);
+                    console.log(`Chunk ${chunkNum}/${chunk.totalChunks} completed.`);
+                } catch (err) {
+                    // Log chunk failure but continue with remaining chunks
+                    console.log(`Warning: Chunk ${chunkNum}/${chunk.totalChunks} failed: ${err instanceof Error ? err.message : String(err)}`);
+                    console.log('Continuing with remaining chunks...');
+                }
+            }
+        }
 
         console.log('\n' + '='.repeat(60));
         console.log('Copilot Code Review completed successfully!');
@@ -217,6 +257,46 @@ function writeAgentScriptWrappers(workingDirectory: string, scriptsDir: string):
         fs.writeFileSync(destPath, content, 'utf8');
         console.log(`Wrote agent script wrapper: ${destPath}`);
     }
+}
+
+/**
+ * Copies a file to a destination if they are different paths.
+ */
+function copyIfNeeded(src: string, dest: string): void {
+    if (path.resolve(src) !== path.resolve(dest)) {
+        fs.copyFileSync(src, dest);
+    }
+}
+
+/**
+ * Builds a continuation prompt for chunk 2+ that skips thread resolution
+ * and focuses only on reviewing the files in the current chunk.
+ */
+function buildChunkContinuationPrompt(
+    originalPromptPath: string,
+    chunkNum: number,
+    totalChunks: number,
+    workingDir: string
+): string {
+    const originalPrompt = fs.readFileSync(originalPromptPath, 'utf8');
+
+    // Replace the thread resolution section with a skip instruction
+    const continuationNote = `
+# Chunked Review Note
+
+This is chunk ${chunkNum} of ${totalChunks} in a chunked code review. The PR has too many changed files to review in a single pass, so it has been split into multiple review runs.
+
+**IMPORTANT for this chunk:**
+- Skip the "Updating Feedback State" section — thread resolution was already handled in chunk 1.
+- Focus ONLY on the files listed in the Iteration_Details.txt file for this chunk.
+- Do NOT duplicate feedback that may have been posted by earlier chunks.
+- You may still use git and file-reading tools to gather context about files outside this chunk.
+`;
+
+    const chunkPrompt = continuationNote + '\n' + originalPrompt;
+    const outPath = path.join(workingDir, `_copilot_prompt_chunk${chunkNum}.txt`);
+    fs.writeFileSync(outPath, chunkPrompt, 'utf8');
+    return outPath;
 }
 
 run();
