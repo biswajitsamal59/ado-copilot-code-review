@@ -1,0 +1,2 @@
+# Tell GitHub Linguist to exclude these from language stats
+build-dev.ps1 linguist-detectable=false

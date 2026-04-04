@@ -1,6 +1,6 @@
 {
     "name": "copilot-pr-review",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Automated pull request code reviews powered by the GitHub Copilot CLI",
     "scripts": {
         "build": "cd CopilotPRReviewV1 && npm run build",
