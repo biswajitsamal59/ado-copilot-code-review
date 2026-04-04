@@ -15,8 +15,7 @@
     Packages the dev extension without rebuilding (uses existing compiled files).
 
 .NOTES
-    Author: Little Fort Software
-    Date: December 2025
+    Author: Biswajit
 #>
 
 [CmdletBinding()]
