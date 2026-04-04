@@ -34,18 +34,18 @@
     },
     "links": {
         "repository": {
-            "uri": "https://github.com/little-fort/ado-copilot-code-review"
+            "uri": "https://github.com/biswajitsamal59/ado-copilot-code-review"
         },
         "issues": {
-            "uri": "https://github.com/little-fort/ado-copilot-code-review/issues"
+            "uri": "https://github.com/biswajitsamal59/ado-copilot-code-review/issues"
         },
         "support": {
-            "uri": "https://github.com/little-fort/ado-copilot-code-review/issues"
+            "uri": "https://github.com/biswajitsamal59/ado-copilot-code-review/issues"
         }
     },
     "repository": {
         "type": "git",
-        "uri": "https://github.com/little-fort/ado-copilot-code-review"
+        "uri": "https://github.com/biswajitsamal59/ado-copilot-code-review"
     },
     "branding": {
         "color": "rgb(0, 122, 204)",

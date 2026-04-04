@@ -1,8 +1,8 @@
-# Copilot Instructions for ado-copilot-code-review
+# Copilot Instructions for Copilot PR Review
 
 ## Project Overview
 
-Azure DevOps pipeline extension that automates PR code reviews using GitHub Copilot CLI or Claude Code CLI. The extension fetches PR details via Azure DevOps REST API, invokes the configured CLI agent for analysis, and posts review comments back to the PR.
+Azure DevOps pipeline extension that automates PR code reviews using the GitHub Copilot CLI. The extension fetches PR details and file diffs via Azure DevOps REST API, invokes the Copilot CLI for analysis, and posts review comments back to the PR.
 
 ## Architecture
 
@@ -18,9 +18,8 @@ CopilotPRReviewV1/src/
 │   ├── pr-context.ts         # Orchestrates context file generation
 │   └── diff-fetcher.ts       # Fetches actual file diffs from ADO API
 ├── agents/
-│   ├── installer.ts          # CLI check + install (Copilot & Claude)
-│   ├── copilot.ts            # Spawn copilot CLI
-│   └── claude.ts             # Spawn claude CLI + stream-json parser
+│   ├── installer.ts          # CLI check + install
+│   └── copilot.ts            # Spawn copilot CLI
 ├── scripts/
 │   ├── add-comment.ts        # Standalone CLI script for posting comments
 │   ├── update-comment.ts     # Standalone CLI script for updating comments

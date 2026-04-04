@@ -1,4 +1,4 @@
-// D:/GitHub/ado-copilot-code-review/CopilotPRReviewV1/src/ado-api/client.ts
+// ado-api/client.ts
 
 import * as https from 'https';
 import * as http from 'http';

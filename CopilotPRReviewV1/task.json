@@ -4,7 +4,7 @@
     "name": "CopilotPRReview",
     "friendlyName": "Copilot PR Review",
     "description": "Automated pull request code reviews powered by the GitHub Copilot CLI",
-    "helpMarkDown": "[Learn more about this task](https://github.com/little-fort/ado-copilot-code-review)",
+    "helpMarkDown": "[Learn more about this task](https://github.com/biswajitsamal59/ado-copilot-code-review)",
     "category": "Utility",
     "author": "Biswajit",
     "version": {
