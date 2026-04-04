@@ -27,8 +27,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = $PSScriptRoot
-$prodTaskDir = Join-Path $repoRoot "CopilotCodeReviewV1"
-$devTaskDir = Join-Path $repoRoot "CopilotCodeReviewDevV1"
+$prodTaskDir = Join-Path $repoRoot "CopilotPRReviewV1"
+$devTaskDir = Join-Path $repoRoot "CopilotPRReviewDevV1"
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Building Dev Extension" -ForegroundColor Cyan
@@ -88,7 +88,7 @@ if (Test-Path $nodeModulesDir) {
     Write-Host "  Copied: node_modules/" -ForegroundColor Gray
 }
 else {
-    throw "node_modules not found. Run 'npm install' in CopilotCodeReviewV1 first."
+    throw "node_modules not found. Run 'npm install' in CopilotPRReviewV1 first."
 }
 
 Write-Host "Files copied to dev task folder." -ForegroundColor Green
@@ -123,4 +123,4 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "`nNext steps:" -ForegroundColor White
 Write-Host "1. Upload the .vsix file to the Marketplace management portal" -ForegroundColor Gray
 Write-Host "2. Share the extension with your test organization" -ForegroundColor Gray
-Write-Host "3. Install and test in your pipelines using 'CopilotCodeReviewDev@0'" -ForegroundColor Gray
+Write-Host "3. Install and test in your pipelines using 'CopilotPRReviewDev@0'" -ForegroundColor Gray

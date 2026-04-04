@@ -1,6 +1,6 @@
-# Copilot Code Review for Azure DevOps
+# Copilot PR Review for Azure DevOps
 
-[![Azure DevOps Marketplace](https://img.shields.io/badge/Azure%20DevOps-Marketplace-blue)](https://marketplace.visualstudio.com/items?itemName=LittleFortSoftware.ado-copilot-code-review)
+[![Azure DevOps Marketplace](https://img.shields.io/badge/Azure%20DevOps-Marketplace-blue)](https://marketplace.visualstudio.com/items?itemName=LittleFortSoftware.copilot-pr-review)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 Automated pull request code reviews powered by the official GitHub Copilot CLI or Claude Code CLI. Get automated feedback on your PRs while leaving your code hosted in Azure DevOps repos.
@@ -27,11 +27,9 @@ This extension supports Windows and Linux Azure DevOps agents. Compatible with M
 - **Azure DevOps Authentication** (one of the following):
   - **System Access Token (Recommended)**: Use the pipeline's built-in OAuth token for Azure DevOps Services. Must grant permissions to Build Service Identity (see below).
   - **Personal Access Token**: Required for Azure DevOps Server (on-prem) or if you prefer explicit token management. Needs permissions to read pull requests, write comments, and read code.
-- **PowerShell 7+**: This extension requires PowerShell 7 or later (`pwsh`) to be installed on the agent. PowerShell 7 is pre-installed on Microsoft-hosted agents.
-
 ## Installation
 
-1. Install the extension from the [Azure DevOps Marketplace](https://marketplace.visualstudio.com/items?itemName=LittleFortSoftware.ado-copilot-code-review)
+1. Install the extension from the [Azure DevOps Marketplace](https://marketplace.visualstudio.com/items?itemName=LittleFortSoftware.copilot-pr-review)
 2. Navigate to your Azure DevOps organization settings
 3. Go to **Extensions** and verify the extension is installed
 
@@ -51,7 +49,7 @@ steps:
 - checkout: self
   fetchDepth: 0
 
-- task: CopilotCodeReview@1
+- task: CopilotPRReview@1
   displayName: 'Copilot Code Review'
   inputs:
     githubPat: '$(GITHUB_PAT)'
@@ -74,7 +72,7 @@ steps:
 - checkout: self
   fetchDepth: 0
 
-- task: CopilotCodeReview@1
+- task: CopilotPRReview@1
   displayName: 'Copilot Code Review'
   inputs:
     githubPat: '$(GITHUB_PAT)'
@@ -95,7 +93,7 @@ steps:
 - checkout: self
   fetchDepth: 0
 
-- task: CopilotCodeReview@1
+- task: CopilotPRReview@1
   displayName: 'Claude Code Review'
   inputs:
     useClaudeCode: true
@@ -119,7 +117,7 @@ Use branch policies on your protected branches to specify the pipeline as a buil
 You can customize the review prompt to focus on aspects tailored to your needs:
 
 ```yaml
-- task: CopilotCodeReview@1
+- task: CopilotPRReview@1
   displayName: 'Copilot Code Review'
   inputs:
     githubPat: '$(GITHUB_PAT)'
@@ -135,7 +133,7 @@ You can customize the review prompt to focus on aspects tailored to your needs:
 For longer custom prompts, create a .txt file in your repository and pass the file path as a task input:
 
 ```yaml
-- task: CopilotCodeReview@1
+- task: CopilotPRReview@1
   displayName: 'Copilot Code Review'
   inputs:
     githubPat: '$(GITHUB_PAT)'
@@ -165,7 +163,7 @@ steps:
   - checkout: self
     fetchDepth: 0
 
-  - task: CopilotCodeReview@1
+  - task: CopilotPRReview@1
     displayName: 'Copilot Code Review'
     inputs:
       githubPat: '$(GITHUB_PAT)'
@@ -243,7 +241,7 @@ Use the `authors` input to limit code reviews to PRs created by specific users. 
 - Use separate prompts/models for certain team members
 
 ```yaml
-- task: CopilotCodeReview@1
+- task: CopilotPRReview@1
   displayName: 'Copilot Code Review'
   inputs:
     githubPat: '$(GITHUB_PAT)'
@@ -370,7 +368,7 @@ Verify that:
   - Try explicitly mapping the `SYSTEM_ACCESSTOKEN` environment variable:
 
 ```yaml
-- task: CopilotCodeReview@1
+- task: CopilotPRReview@1
   displayName: 'Copilot Code Review'
   inputs:
     githubPat: '$(GITHUB_PAT)'

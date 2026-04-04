@@ -7,12 +7,12 @@
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
         "outDir": ".",
-        "rootDir": ".",
+        "rootDir": "src",
         "declaration": false,
         "sourceMap": false
     },
     "include": [
-        "*.ts"
+        "src/**/*.ts"
     ],
     "exclude": [
         "node_modules",
