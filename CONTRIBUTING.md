@@ -15,7 +15,7 @@ Thank you for your interest in contributing to this project!
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/little-fort/ado-copilot-code-review.git
+   git clone https://github.com/biswajitsamal59/ado-copilot-code-review.git
    cd ado-copilot-code-review
    ```
 
@@ -62,7 +62,7 @@ Thank you for your interest in contributing to this project!
 ### Project Structure
 
 ```
-ado-copilot-code-review/
+copilot-pr-review/
 ├── vss-extension.json          # Extension manifest
 ├── README.md                   # Documentation
 ├── LICENSE                     # GPL-3.0 License
@@ -77,7 +77,7 @@ ado-copilot-code-review/
     └── src/
         ├── index.ts            # Main orchestrator
         ├── ado-api/            # Azure DevOps REST API modules
-        ├── agents/             # CLI agent runners (Copilot, Claude)
+        ├── agents/             # CLI agent runner (Copilot)
         ├── context/            # PR context and diff fetching
         ├── scripts/            # Standalone CLI scripts for comment management
         ├── utils/              # Utilities (HTML stripping, diff, prompt)

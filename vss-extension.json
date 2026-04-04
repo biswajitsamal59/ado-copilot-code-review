@@ -11,7 +11,7 @@
             "id": "Microsoft.VisualStudio.Services"
         }
     ],
-    "description": "Automated pull request code reviews powered by agentic AI. Get feedback on your PRs directly in Azure DevOps by leveraging the official GitHub Copilot CLI.",
+    "description": "Automated pull request code reviews powered by agentic AI. Get instant feedback on your PRs directly in Azure DevOps using the GitHub Copilot CLI.",
     "categories": [
         "Azure Pipelines"
     ],
@@ -33,18 +33,18 @@
     },
     "links": {
         "repository": {
-            "uri": "https://github.com/little-fort/ado-copilot-code-review"
+            "uri": "https://github.com/biswajitsamal59/ado-copilot-code-review"
         },
         "issues": {
-            "uri": "https://github.com/little-fort/ado-copilot-code-review/issues"
+            "uri": "https://github.com/biswajitsamal59/ado-copilot-code-review/issues"
         },
         "support": {
-            "uri": "https://github.com/little-fort/ado-copilot-code-review/issues"
+            "uri": "https://github.com/biswajitsamal59/ado-copilot-code-review/issues"
         }
     },
     "repository": {
         "type": "git",
-        "uri": "https://github.com/little-fort/ado-copilot-code-review"
+        "uri": "https://github.com/biswajitsamal59/ado-copilot-code-review"
     },
     "branding": {
         "color": "rgb(0, 122, 204)",

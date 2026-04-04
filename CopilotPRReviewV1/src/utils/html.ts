@@ -1,4 +1,4 @@
-// D:/GitHub/ado-copilot-code-review/CopilotPRReviewV1/src/utils/html.ts
+// utils/html.ts
 
 /**
  * Converts HTML to plain text.
