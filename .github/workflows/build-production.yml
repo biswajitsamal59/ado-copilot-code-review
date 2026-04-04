@@ -20,7 +20,7 @@ jobs:
         run: npm install
 
       - name: Install task dependencies
-        working-directory: CopilotCodeReviewV1
+        working-directory: CopilotPRReviewV1
         run: npm install
 
       - name: Build TypeScript

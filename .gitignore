@@ -32,8 +32,8 @@ test-results.xml
 PR_Details.txt
 Iteration_Details.txt
 # Dev task folder (built files copied at package time)
-CopilotCodeReviewDevV1/*
-!CopilotCodeReviewDevV1/task.json
+CopilotPRReviewDevV1/*
+!CopilotPRReviewDevV1/task.json
 tmpclaude*
 CLAUDE.md
 .claude/settings.local.json

@@ -1,9 +1,9 @@
 {
     "$schema": "https://raw.githubusercontent.com/Microsoft/azure-pipelines-task-lib/master/tasks.schema.json",
-    "id": "b8e3f2a1-9c4d-4e5f-8a6b-7c8d9e0f1a2b",
-    "name": "CopilotCodeReviewDev",
-    "friendlyName": "Copilot Code Review (Dev)",
-    "description": "[Development Build] Perform automated code reviews on pull requests using the official GitHub Copilot CLI",
+    "id": "e4ed4826-ceb7-42f4-a7b9-48316cec47f1",
+    "name": "CopilotPRReviewDev",
+    "friendlyName": "Copilot PR Review (Dev)",
+    "description": "[Development Build] Automated pull request code reviews powered by the GitHub Copilot CLI",
     "helpMarkDown": "[Learn more about this task](https://github.com/little-fort/ado-copilot-code-review)",
     "category": "Utility",
     "author": "LittleFortSoftware",
@@ -12,52 +12,16 @@
         "Minor": 3,
         "Patch": 8
     },
-    "instanceNameFormat": "Copilot Code Review (Dev)",
+    "instanceNameFormat": "Copilot PR Review (Dev)",
     "minimumAgentVersion": "2.182.1",
     "inputs": [
-        {
-            "name": "useClaudeCode",
-            "type": "boolean",
-            "label": "Use Claude Code CLI",
-            "required": false,
-            "defaultValue": false,
-            "helpMarkDown": "When enabled, uses Claude Code CLI (Anthropic) instead of GitHub Copilot CLI for the code review. Requires an Anthropic API key."
-        },
         {
             "name": "githubPat",
             "type": "string",
             "label": "GitHub PAT",
             "required": false,
             "isSecret": true,
-            "helpMarkDown": "Personal Access Token for GitHub with Copilot access. Required when using the GitHub Copilot CLI (default). Not needed when 'Use Claude Code CLI' is enabled.",
-            "visibleRule": "useClaudeCode != true"
-        },
-        {
-            "name": "anthropicApiKey",
-            "type": "string",
-            "label": "Anthropic API Key",
-            "required": false,
-            "isSecret": true,
-            "helpMarkDown": "API key for Anthropic's Claude Code CLI. Required when 'Use Claude Code CLI' is enabled.",
-            "visibleRule": "useClaudeCode = true"
-        },
-        {
-            "name": "maxTurns",
-            "type": "string",
-            "label": "Max Turns (Claude Code)",
-            "required": false,
-            "defaultValue": "",
-            "helpMarkDown": "Optional. Maximum number of agentic turns for Claude Code CLI. Limits how many tool-use iterations the agent can perform.",
-            "visibleRule": "useClaudeCode = true"
-        },
-        {
-            "name": "maxBudget",
-            "type": "string",
-            "label": "Max Budget USD (Claude Code)",
-            "required": false,
-            "defaultValue": "",
-            "helpMarkDown": "Optional. Maximum cost in USD for the Claude Code CLI session. The session will stop if this budget is reached.",
-            "visibleRule": "useClaudeCode = true"
+            "helpMarkDown": "Personal Access Token for GitHub with Copilot access. Required for GitHub Copilot CLI to perform code reviews."
         },
         {
             "name": "azureDevOpsPat",

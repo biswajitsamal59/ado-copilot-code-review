@@ -1,4 +1,4 @@
-# Contributing to Copilot Code Review for Azure DevOps
+# Contributing to Copilot PR Review for Azure DevOps
 
 Thank you for your interest in contributing to this project!
 
@@ -21,7 +21,7 @@ Thank you for your interest in contributing to this project!
 
 2. Install dependencies:
    ```bash
-   cd CopilotCodeReviewV1
+   cd CopilotPRReviewV1
    npm install
    ```
 
@@ -55,7 +55,7 @@ Thank you for your interest in contributing to this project!
 
 2. Run the task:
    ```bash
-   cd CopilotCodeReviewV1
+   cd CopilotPRReviewV1
    node index.js
    ```
 
@@ -65,30 +65,31 @@ Thank you for your interest in contributing to this project!
 ado-copilot-code-review/
 ├── vss-extension.json          # Extension manifest
 ├── README.md                   # Documentation
-├── LICENSE                     # MIT License
+├── LICENSE                     # GPL-3.0 License
 ├── CONTRIBUTING.md             # This file
 ├── .gitignore
 ├── images/
 │   └── extension-icon.png      # Extension icon (128x128+)
-└── CopilotCodeReviewV1/
+└── CopilotPRReviewV1/
     ├── task.json               # Task definition
-    ├── index.ts                # Main task logic
     ├── package.json            # Node.js dependencies
     ├── tsconfig.json           # TypeScript config
-    └── scripts/
-        ├── Get-AzureDevOpsPR.ps1           # Fetch PR details
-        ├── Get-AzureDevOpsPRChanges.ps1    # Fetch PR changes
-        ├── Add-AzureDevOpsPRComment.ps1    # Post comments
-        ├── Add-CopilotComment.ps1          # Simplified comment wrapper
-        └── prompt.txt                       # Default Copilot prompt
+    └── src/
+        ├── index.ts            # Main orchestrator
+        ├── ado-api/            # Azure DevOps REST API modules
+        ├── agents/             # CLI agent runners (Copilot, Claude)
+        ├── context/            # PR context and diff fetching
+        ├── scripts/            # Standalone CLI scripts for comment management
+        ├── utils/              # Utilities (HTML stripping, diff, prompt)
+        └── scripts/
+            ├── prompt.txt      # Default Copilot prompt
+            └── prompt-custom.txt # Custom prompt template
 ```
 
 ### Code Style
 
-- Use TypeScript for the main task logic
-- Use PowerShell for Azure DevOps API interactions
+- Use TypeScript for all logic
 - Follow existing code patterns and formatting
-- Include JSDoc/comment headers for functions
 
 ### Submitting Changes
 
@@ -110,4 +111,4 @@ Please use GitHub Issues to report bugs or request features. Include:
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+By contributing, you agree that your contributions will be licensed under the GPL-3.0 License.
