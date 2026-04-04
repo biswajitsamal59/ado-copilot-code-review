@@ -12,8 +12,10 @@ import {
 } from '../ado-api/pull-requests';
 import { fetchWorkItems, formatWorkItemsText } from '../ado-api/work-items';
 import {
+    ChangeEntry,
     fetchIterationChanges,
     fetchIterationDiffs,
+    chunkDiffs,
     formatIterationDetailsText,
 } from './diff-fetcher';
 
@@ -21,10 +23,17 @@ export interface PrContextOptions {
     includeWorkItems: boolean;
 }
 
+export interface ReviewChunk {
+    chunkIndex: number;
+    totalChunks: number;
+    iterationDetailsPath: string;
+    fileCount: number;
+}
+
 export interface PrContextResult {
     iterationId: number;
     prDetailsPath: string;
-    iterationDetailsPath: string;
+    chunks: ReviewChunk[];
     workItemDetailsPath: string | null;
     workItemIdsPath: string;
     iterationIdPath: string;
@@ -32,10 +41,7 @@ export interface PrContextResult {
 
 /**
  * Builds all PR context files in the output directory.
- * Replaces the three separate PowerShell script invocations in index.ts:
- *   - Get-AzureDevOpsPR.ps1       → PR_Details.txt + Work_Item_Ids.txt
- *   - Get-AzureDevOpsPRChanges.ps1 → Iteration_Details.txt + Iteration_Id.txt
- *   - Get-AzureDevOpsWorkItems.ps1 → Work_Item_Details.txt
+ * Diffs are split into chunks so each agent run stays within the context budget.
  */
 export async function buildPrContext(
     client: AdoClient,
@@ -92,7 +98,7 @@ export async function buildPrContext(
     ]);
 
     console.log(`Fetching diffs for ${changeEntries.length} changed file(s)...`);
-    const diffs = await fetchIterationDiffs(
+    const allDiffs = await fetchIterationDiffs(
         client,
         repo,
         prId,
@@ -102,21 +108,47 @@ export async function buildPrContext(
         latestIteration.targetRefCommit?.commitId ?? ''
     );
 
-    const iterationDetailsText = formatIterationDetailsText(
-        iterationId,
-        latestIteration,
-        commits,
-        changeEntries,
-        diffs,
-        collectionUri,
-        client.getProject(),
-        repo,
-        prId
-    );
+    // Split diffs into chunks that fit the context budget
+    const diffChunks = chunkDiffs(allDiffs);
+    console.log(`Split ${allDiffs.length} file(s) into ${diffChunks.length} review chunk(s).`);
 
-    const iterationDetailsPath = path.join(outputDir, 'Iteration_Details.txt');
-    fs.writeFileSync(iterationDetailsPath, iterationDetailsText, 'utf8');
-    console.log(`Iteration details saved to: ${iterationDetailsPath}`);
+    const chunks: ReviewChunk[] = [];
+
+    for (let i = 0; i < diffChunks.length; i++) {
+        const chunkDiffs = diffChunks[i];
+
+        // Build the change entries subset matching this chunk's files
+        const chunkPaths = new Set(chunkDiffs.map(d => d.path));
+        const chunkChangeEntries = changeEntries.filter(c => chunkPaths.has(c.item.path));
+
+        const iterationDetailsText = formatIterationDetailsText(
+            iterationId,
+            latestIteration,
+            commits,
+            chunkChangeEntries,
+            chunkDiffs,
+            collectionUri,
+            client.getProject(),
+            repo,
+            prId,
+            diffChunks.length > 1 ? { chunkIndex: i + 1, totalChunks: diffChunks.length, totalFiles: allDiffs.length } : undefined
+        );
+
+        // Single chunk: Iteration_Details.txt, multiple: Iteration_Details_Chunk1.txt etc.
+        const fileName = diffChunks.length === 1
+            ? 'Iteration_Details.txt'
+            : `Iteration_Details_Chunk${i + 1}.txt`;
+        const iterationDetailsPath = path.join(outputDir, fileName);
+        fs.writeFileSync(iterationDetailsPath, iterationDetailsText, 'utf8');
+        console.log(`  Chunk ${i + 1}/${diffChunks.length}: ${chunkDiffs.length} file(s) → ${fileName}`);
+
+        chunks.push({
+            chunkIndex: i,
+            totalChunks: diffChunks.length,
+            iterationDetailsPath,
+            fileCount: chunkDiffs.length,
+        });
+    }
 
     const iterationIdPath = path.join(outputDir, 'Iteration_Id.txt');
     fs.writeFileSync(iterationIdPath, String(iterationId), 'utf8');
@@ -148,7 +180,7 @@ export async function buildPrContext(
     return {
         iterationId,
         prDetailsPath,
-        iterationDetailsPath,
+        chunks,
         workItemDetailsPath,
         workItemIdsPath,
         iterationIdPath,

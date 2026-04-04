@@ -2,9 +2,9 @@ import { AdoClient } from '../ado-api/client';
 import { computeUnifiedDiff, formatAsAddition, formatAsDeletion } from '../utils/diff';
 
 const MAX_FILE_SIZE_BYTES = 250 * 1024; // 250 KB per file
-const MAX_TOTAL_DIFF_BYTES = 500 * 1024; // 500 KB total
 const MAX_DIFF_LINES = 5000; // Skip Myers diff for files larger than this
 const CONCURRENCY = 5; // Parallel file fetches
+const CHUNK_BYTE_BUDGET = 150 * 1024; // 150 KB per chunk (~37K tokens)
 
 export interface ChangeEntry {
     changeType: string;
@@ -119,7 +119,7 @@ async function computeFileDiff(
 
 /**
  * Fetches diffs for all changed files in a PR iteration.
- * Uses bounded concurrency for parallel fetches.
+ * Uses bounded concurrency for parallel fetches. Returns ALL diffs with no cap.
  */
 export async function fetchIterationDiffs(
     client: AdoClient,
@@ -131,8 +131,6 @@ export async function fetchIterationDiffs(
     targetCommitId: string
 ): Promise<FileDiff[]> {
     const results: FileDiff[] = new Array(changeEntries.length);
-    let totalBytes = 0;
-    let truncatedCount = 0;
 
     // Process in batches of CONCURRENCY
     for (let i = 0; i < changeEntries.length; i += CONCURRENCY) {
@@ -150,45 +148,61 @@ export async function fetchIterationDiffs(
         );
 
         for (const { idx, entry, diffContent } of batchResults) {
-            const diffBytes = Buffer.byteLength(diffContent, 'utf8');
-            if (totalBytes >= MAX_TOTAL_DIFF_BYTES) {
-                truncatedCount++;
-                results[idx] = {
-                    path: entry.item.path,
-                    changeType: entry.changeType,
-                    originalPath: entry.originalPath,
-                    diffContent: '',
-                };
-            } else {
-                totalBytes += diffBytes;
-                results[idx] = {
-                    path: entry.item.path,
-                    changeType: entry.changeType,
-                    originalPath: entry.originalPath,
-                    diffContent,
-                };
-            }
+            results[idx] = {
+                path: entry.item.path,
+                changeType: entry.changeType,
+                originalPath: entry.originalPath,
+                diffContent,
+            };
         }
     }
 
-    // Filter out empty (truncated) entries and add truncation notice
-    const diffs = results.filter(d => d.diffContent !== '');
+    return results;
+}
 
-    if (truncatedCount > 0) {
-        diffs.push({
-            path: '(truncated)',
-            changeType: 'truncated',
-            diffContent: `(Diff truncated — ${truncatedCount} more file(s) not shown. Use git diff for full content.)`,
-        });
+/**
+ * Groups file diffs into chunks that each fit within the byte budget.
+ * Each chunk is a self-contained set of FileDiff entries for one agent run.
+ */
+export function chunkDiffs(diffs: FileDiff[], byteBudget: number = CHUNK_BYTE_BUDGET): FileDiff[][] {
+    if (diffs.length === 0) return [[]];
+
+    const chunks: FileDiff[][] = [];
+    let currentChunk: FileDiff[] = [];
+    let currentBytes = 0;
+
+    for (const diff of diffs) {
+        const diffBytes = Buffer.byteLength(diff.diffContent, 'utf8');
+
+        // If adding this diff exceeds the budget AND the chunk isn't empty, start a new chunk
+        if (currentBytes + diffBytes > byteBudget && currentChunk.length > 0) {
+            chunks.push(currentChunk);
+            currentChunk = [];
+            currentBytes = 0;
+        }
+
+        currentChunk.push(diff);
+        currentBytes += diffBytes;
     }
 
-    return diffs;
+    // Push the last chunk
+    if (currentChunk.length > 0) {
+        chunks.push(currentChunk);
+    }
+
+    return chunks;
 }
 
 /**
  * Formats iteration data + diffs into the text matching current Iteration_Details.txt output,
  * but now includes actual diff content under each file.
  */
+export interface ChunkInfo {
+    chunkIndex: number;
+    totalChunks: number;
+    totalFiles: number;
+}
+
 export function formatIterationDetailsText(
     iterationId: number,
     iteration: { createdDate: string; updatedDate: string; sourceRefCommit?: { commitId: string }; targetRefCommit?: { commitId: string } },
@@ -198,7 +212,8 @@ export function formatIterationDetailsText(
     collectionUri: string,
     project: string,
     repo: string,
-    prId: number
+    prId: number,
+    chunkInfo?: ChunkInfo
 ): string {
     const sep80 = '='.repeat(80);
     const lines: string[] = [];
@@ -224,7 +239,8 @@ export function formatIterationDetailsText(
 
     lines.push('');
     lines.push(sep80);
-    lines.push(`PULL REQUEST CHANGES - ITERATION #${iterationId}`);
+    const chunkLabel = chunkInfo ? ` (CHUNK ${chunkInfo.chunkIndex}/${chunkInfo.totalChunks})` : '';
+    lines.push(`PULL REQUEST CHANGES - ITERATION #${iterationId}${chunkLabel}`);
     lines.push(sep80);
 
     // Iteration Details
@@ -238,6 +254,12 @@ export function formatIterationDetailsText(
     }
     if (iteration.targetRefCommit) {
         lines.push(`  Target Commit:    ${iteration.targetRefCommit.commitId.substring(0, 8)}`);
+    }
+    if (chunkInfo) {
+        lines.push('');
+        lines.push(`  ** Review Chunk:  ${chunkInfo.chunkIndex} of ${chunkInfo.totalChunks} **`);
+        lines.push(`  ** This chunk contains ${changeEntries.length} of ${chunkInfo.totalFiles} total changed files **`);
+        lines.push(`  ** Focus ONLY on the files listed below. Other files are reviewed in separate chunks. **`);
     }
 
     // Commits
