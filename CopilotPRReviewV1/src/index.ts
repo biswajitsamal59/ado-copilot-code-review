@@ -18,23 +18,11 @@ async function run(): Promise<void> {
             const authorList = authors.split(',').map(e => e.trim().toLowerCase());
             const currentAuthor = requestedForEmail.toLowerCase();
 
-            console.log('='.repeat(60));
-            console.log('Author Filter Check');
-            console.log('='.repeat(60));
-            console.log(`Configured authors: ${authorList.join(', ')}`);
-            console.log(`PR author email: ${requestedForEmail || '(not available)'}`);
-
             if (!authorList.includes(currentAuthor)) {
-                console.log('Result: PR author is NOT in the configured authors list.');
-                console.log('Skipping code review for this PR.');
-                console.log('='.repeat(60));
+                console.log(`Skipping: PR author (${requestedForEmail || 'unknown'}) is not in the configured authors list.`);
                 tl.setResult(tl.TaskResult.Succeeded, 'Skipped: PR author not in configured authors list.');
                 return;
             }
-
-            console.log('Result: PR author IS in the configured authors list.');
-            console.log('Proceeding with code review.');
-            console.log('='.repeat(60));
         }
 
         const githubPat = tl.getInput('githubPat');
@@ -60,11 +48,9 @@ async function run(): Promise<void> {
             }
             azureDevOpsToken = systemToken;
             azureDevOpsAuthType = 'Bearer';
-            console.log('Using System.AccessToken (OAuth) for Azure DevOps authentication.');
         } else if (azureDevOpsPat) {
             azureDevOpsToken = azureDevOpsPat;
             azureDevOpsAuthType = 'Basic';
-            console.log('Using Personal Access Token for Azure DevOps authentication.');
         } else {
             tl.setResult(tl.TaskResult.Failed,
                 'Azure DevOps authentication is required. Either provide an Azure DevOps PAT or enable "Use System Access Token".');
@@ -78,15 +64,12 @@ async function run(): Promise<void> {
 
         if (collectionUriInput) {
             resolvedCollectionUri = collectionUriInput.replace(/\/+$/, '');
-            console.log(`Using explicit collection URI: ${resolvedCollectionUri}`);
         } else if (organizationInput) {
             resolvedCollectionUri = `https://dev.azure.com/${organizationInput}`;
-            console.log(`Constructed collection URI from organization: ${resolvedCollectionUri}`);
         } else {
             const systemCollectionUri = tl.getVariable('System.CollectionUri');
             if (systemCollectionUri) {
                 resolvedCollectionUri = systemCollectionUri.replace(/\/+$/, '');
-                console.log(`Auto-detected collection URI from System.CollectionUri: ${resolvedCollectionUri}`);
             }
         }
 
@@ -122,16 +105,7 @@ async function run(): Promise<void> {
         const model = tl.getInput('model');
         const includeWorkItems = tl.getBoolInput('includeWorkItems', false);
 
-        console.log('='.repeat(60));
-        console.log('Copilot PR Review Task');
-        console.log('='.repeat(60));
-        console.log(`Collection URI:  ${resolvedCollectionUri}`);
-        console.log(`Project:         ${project}`);
-        console.log(`Repository:      ${repository}`);
-        console.log(`Pull Request ID: ${pullRequestId}`);
-        console.log(`Timeout:         ${timeoutMinutes} minutes`);
-        if (model) console.log(`Model:           ${model}`);
-        console.log('='.repeat(60));
+        console.log(`\nCopilot PR Review — ${project}/${repository} PR #${pullRequestId}`);
 
         // ── Set environment variables for agent scripts ────────────────────────
         process.env['GH_TOKEN'] = githubPat;
@@ -145,16 +119,19 @@ async function run(): Promise<void> {
         const workingDirectory = tl.getVariable('System.DefaultWorkingDirectory') ?? process.cwd();
         const scriptsDir = path.join(__dirname, 'scripts');
 
-        // ── Step 1: Install GitHub Copilot CLI ────────────────────────────────
-        console.log('\n[Step 1/5] Checking GitHub Copilot CLI installation...');
+        // ── Step 1: Setup Copilot CLI ─────────────────────────────────────────
+        console.log('\n[1/3] Setting up Copilot CLI...');
         if (!await checkCopilotCli()) {
-            console.log('GitHub Copilot CLI not found. Installing...');
+            console.log('  Not found. Installing...');
             await installCopilotCli();
+            console.log('  Installed successfully.');
         } else {
-            console.log('GitHub Copilot CLI is already installed.');
+            console.log('  Already installed.');
         }
 
-        // ── Steps 2-4: Build PR context (replaces 3 PS script invocations) ────
+        // ── Step 2: Build PR context ──────────────────────────────────────────
+        console.log('\n[2/3] Fetching PR context...');
+
         const client = new AdoClient({
             collectionUri: resolvedCollectionUri,
             project,
@@ -168,9 +145,8 @@ async function run(): Promise<void> {
 
         // Expose iteration ID to agent scripts via environment
         process.env['ITERATION_ID'] = String(context.iterationId);
-        console.log(`Iteration ID set to: ${context.iterationId}`);
 
-        // ── Step 5: Run Copilot code review ───────────────────────────────────
+        // ── Step 3: Run code review ───────────────────────────────────────────
 
         const promptFilePath = resolvePrompt({
             promptInput: tl.getInput('prompt') || undefined,
@@ -189,7 +165,7 @@ async function run(): Promise<void> {
 
         if (chunks.length === 1) {
             // Single chunk — standard review
-            console.log('\n[Step 5/5] Running Copilot code review...');
+            console.log('\n[3/3] Running code review...');
 
             // Write Iteration_Details.txt as the standard name the prompt references
             copyIfNeeded(chunks[0].iterationDetailsPath, path.join(workingDirectory, 'Iteration_Details.txt'));
@@ -197,14 +173,12 @@ async function run(): Promise<void> {
             await runCopilotCli(promptFilePath, model || undefined, workingDirectory, timeoutMs);
         } else {
             // Multiple chunks — run one agent per chunk
-            console.log(`\n[Step 5/5] Running chunked Copilot code review (${chunks.length} chunks)...`);
+            console.log(`\n[3/3] Running code review (${chunks.length} chunks)...`);
             const perChunkTimeout = Math.max(timeoutMs / chunks.length, 5 * 60 * 1000); // min 5 min per chunk
 
             for (const chunk of chunks) {
                 const chunkNum = chunk.chunkIndex + 1;
-                console.log(`\n${'─'.repeat(60)}`);
-                console.log(`Chunk ${chunkNum}/${chunk.totalChunks}: Reviewing ${chunk.fileCount} file(s)...`);
-                console.log('─'.repeat(60));
+                console.log(`\n  Chunk ${chunkNum}/${chunk.totalChunks}: ${chunk.fileCount} file(s)...`);
 
                 // Overwrite Iteration_Details.txt with this chunk's content
                 // so the prompt's reference to "Iteration_Details.txt" always works
@@ -219,18 +193,15 @@ async function run(): Promise<void> {
 
                 try {
                     await runCopilotCli(chunkPromptPath, model || undefined, workingDirectory, perChunkTimeout);
-                    console.log(`Chunk ${chunkNum}/${chunk.totalChunks} completed.`);
+                    console.log(`  Chunk ${chunkNum}/${chunk.totalChunks} done.`);
                 } catch (err) {
                     // Log chunk failure but continue with remaining chunks
-                    console.log(`Warning: Chunk ${chunkNum}/${chunk.totalChunks} failed: ${err instanceof Error ? err.message : String(err)}`);
-                    console.log('Continuing with remaining chunks...');
+                    console.log(`  Warning: Chunk ${chunkNum}/${chunk.totalChunks} failed: ${err instanceof Error ? err.message : String(err)}`);
                 }
             }
         }
 
-        console.log('\n' + '='.repeat(60));
-        console.log('Copilot Code Review completed successfully!');
-        console.log('='.repeat(60));
+        console.log('\nCopilot PR Review completed.');
 
         tl.setResult(tl.TaskResult.Succeeded, 'Copilot code review completed.');
     } catch (err: unknown) {
@@ -253,9 +224,7 @@ function writeAgentScriptWrappers(workingDirectory: string, scriptsDir: string):
 
     for (const { wrapper, compiled } of scripts) {
         const content = `require(${JSON.stringify(compiled)});\n`;
-        const destPath = path.join(workingDirectory, wrapper);
-        fs.writeFileSync(destPath, content, 'utf8');
-        console.log(`Wrote agent script wrapper: ${destPath}`);
+        fs.writeFileSync(path.join(workingDirectory, wrapper), content, 'utf8');
     }
 }
 

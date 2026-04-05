@@ -50,13 +50,14 @@ export async function buildPrContext(
     outputDir: string,
     options: PrContextOptions
 ): Promise<PrContextResult> {
-    console.log('\n[Step 2/5] Fetching pull request details...');
+    // Fetch PR metadata in parallel
     const [prDetails, workItemIds, iterations, threads] = await Promise.all([
         fetchPrDetails(client, repo, prId),
         fetchPrWorkItemIds(client, repo, prId),
         fetchPrIterations(client, repo, prId),
         fetchPrThreads(client, repo, prId),
     ]);
+    console.log('  PR details fetched.');
 
     const collectionUri = client.getCollectionUri();
     const copilotThreads = filterCopilotThreads(threads);
@@ -72,17 +73,14 @@ export async function buildPrContext(
 
     const prDetailsPath = path.join(outputDir, 'PR_Details.txt');
     fs.writeFileSync(prDetailsPath, prDetailsText, 'utf8');
-    console.log(`PR details saved to: ${prDetailsPath}`);
 
     // Write work item IDs file
     const workItemIdsPath = path.join(outputDir, 'Work_Item_Ids.txt');
     if (workItemIds.length > 0) {
         fs.writeFileSync(workItemIdsPath, workItemIds.join(','), 'utf8');
-        console.log(`Work item IDs written to: ${workItemIdsPath}`);
     }
 
     // ── Iteration Details ────────────────────────────────────────────────────
-    console.log('\n[Step 3/5] Fetching pull request changes...');
 
     if (iterations.length === 0) {
         throw new Error(`No iterations found for pull request #${prId}`);
@@ -97,7 +95,7 @@ export async function buildPrContext(
         fetchIterationChanges(client, repo, prId, iterationId),
     ]);
 
-    console.log(`Fetching diffs for ${changeEntries.length} changed file(s)...`);
+    console.log(`  Fetching diffs for ${changeEntries.length} changed file(s)...`);
     const allDiffs = await fetchIterationDiffs(
         client,
         repo,
@@ -110,7 +108,6 @@ export async function buildPrContext(
 
     // Split diffs into chunks that fit the context budget
     const diffChunks = chunkDiffs(allDiffs);
-    console.log(`Split ${allDiffs.length} file(s) into ${diffChunks.length} review chunk(s).`);
 
     const chunks: ReviewChunk[] = [];
 
@@ -140,7 +137,6 @@ export async function buildPrContext(
             : `Iteration_Details_Chunk${i + 1}.txt`;
         const iterationDetailsPath = path.join(outputDir, fileName);
         fs.writeFileSync(iterationDetailsPath, iterationDetailsText, 'utf8');
-        console.log(`  Chunk ${i + 1}/${diffChunks.length}: ${chunkDiffs.length} file(s) → ${fileName}`);
 
         chunks.push({
             chunkIndex: i,
@@ -150,31 +146,32 @@ export async function buildPrContext(
         });
     }
 
+    if (diffChunks.length === 1) {
+        console.log(`  ${allDiffs.length} file(s) ready for review.`);
+    } else {
+        console.log(`  ${allDiffs.length} file(s) split into ${diffChunks.length} review chunks.`);
+    }
+
     const iterationIdPath = path.join(outputDir, 'Iteration_Id.txt');
     fs.writeFileSync(iterationIdPath, String(iterationId), 'utf8');
-    console.log(`Iteration ID (${iterationId}) written to: ${iterationIdPath}`);
 
     // ── Work Item Details (optional) ─────────────────────────────────────────
     let workItemDetailsPath: string | null = null;
 
     if (options.includeWorkItems) {
-        console.log('\n[Step 4/5] Fetching linked work item details...');
         if (workItemIds.length > 0) {
             try {
                 const workItemDetails = await fetchWorkItems(client, workItemIds);
                 const workItemDetailsText = formatWorkItemsText(workItemDetails);
                 workItemDetailsPath = path.join(outputDir, 'Work_Item_Details.txt');
                 fs.writeFileSync(workItemDetailsPath, workItemDetailsText, 'utf8');
-                console.log(`Work item details saved to: ${workItemDetailsPath}`);
+                console.log(`  Fetched ${workItemIds.length} linked work item(s).`);
             } catch (err) {
-                console.log('Warning: Failed to fetch work item details. Continuing without work item context.');
-                console.log(`Error: ${err instanceof Error ? err.message : String(err)}`);
+                console.log(`  Warning: Could not fetch work items — ${err instanceof Error ? err.message : String(err)}`);
             }
         } else {
-            console.log('No linked work items for this PR. Skipping work item detail fetch.');
+            console.log('  No linked work items.');
         }
-    } else {
-        console.log('\n[Step 4/5] Skipping work item details (disabled).');
     }
 
     return {
