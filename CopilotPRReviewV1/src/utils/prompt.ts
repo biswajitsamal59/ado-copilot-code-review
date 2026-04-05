@@ -59,13 +59,12 @@ export function resolvePrompt(config: PromptConfig): string {
 
     if (promptRawInput) {
         // Raw prompt: pass directly with no modification
-        console.log('Using raw prompt from input.');
+        console.log('  Prompt: raw (inline)');
         promptFilePath = path.join(workingDir, '_copilot_prompt.txt');
         fs.writeFileSync(promptFilePath, promptRawInput, 'utf8');
-        console.log('\nRAW PROMPT:\n' + promptRawInput + '\n');
     } else if (isPromptFileRawSet) {
         // Raw prompt file: use contents as-is
-        console.log(`Using raw prompt from file: ${promptFileRawInput}`);
+        console.log('  Prompt: raw (file)');
         const fileContent = fs.readFileSync(promptFileRawInput!, 'utf8');
         if (!fileContent.trim()) {
             tl.setResult(tl.TaskResult.Failed, `Raw prompt file is empty: ${promptFileRawInput}`);
@@ -73,10 +72,9 @@ export function resolvePrompt(config: PromptConfig): string {
         }
         promptFilePath = path.join(workingDir, '_copilot_prompt.txt');
         fs.writeFileSync(promptFilePath, fileContent, 'utf8');
-        console.log('\nRAW PROMPT:\n' + fileContent + '\n');
     } else if (promptInput) {
         // Custom inline prompt: merge with template
-        console.log('Using custom prompt from input.');
+        console.log('  Prompt: custom (inline)');
         if (promptInput.includes('"')) {
             tl.setResult(
                 tl.TaskResult.Failed,
@@ -87,7 +85,7 @@ export function resolvePrompt(config: PromptConfig): string {
         promptFilePath = buildCustomPrompt(promptInput, scriptsDir, workingDir);
     } else if (isPromptFileSet) {
         // Custom prompt from file: merge with template
-        console.log(`Using custom prompt from file: ${promptFileInput}`);
+        console.log('  Prompt: custom (file)');
         const fileContent = fs.readFileSync(promptFileInput!, 'utf8').trim();
         if (!fileContent) {
             tl.setResult(tl.TaskResult.Failed, `Prompt file is empty: ${promptFileInput}`);
@@ -104,7 +102,7 @@ export function resolvePrompt(config: PromptConfig): string {
     } else {
         // Default prompt bundled with the task
         promptFilePath = path.join(scriptsDir, 'prompt.txt');
-        console.log('Using default prompt.');
+        console.log('  Prompt: default');
     }
 
     return promptFilePath;
@@ -114,9 +112,7 @@ function buildCustomPrompt(customText: string, scriptsDir: string, workingDir: s
     const templatePath = path.join(scriptsDir, 'prompt-custom.txt');
     const template = fs.readFileSync(templatePath, 'utf8');
     const merged = template.replace('%CUSTOMPROMPT%', customText);
-    console.log('\nCUSTOM PROMPT:\n' + merged + '\n');
     const outPath = path.join(workingDir, '_copilot_prompt.txt');
     fs.writeFileSync(outPath, merged, 'utf8');
-    console.log('Custom prompt merged with instruction template.');
     return outPath;
 }

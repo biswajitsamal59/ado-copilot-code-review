@@ -1,101 +1,67 @@
 import * as child_process from 'child_process';
 import * as fs from 'fs';
-import * as path from 'path';
 
 /**
- * Runs the GitHub Copilot CLI by spawning a platform shell (pwsh / bash)
- * that reads the prompt from file and invokes `copilot`.
+ * Refreshes the Node process's PATH so that binaries installed during the
+ * current pipeline run (e.g. via winget) are discoverable.
  *
- * We spawn `pwsh` (PowerShell 7+) on Windows — NOT `powershell` (5.1) —
- * because PS 5.1 has a known bug with native command argument passing:
- * embedded double quotes in a variable are not properly escaped when
- * constructing the command line for external executables. PS 7.3+
- * defaults to the 'Standard' argument passing mode which fixes this.
+ *  - Windows: reads the current Machine + User PATH from the registry
+ *    (winget updates the registry but not the running process).
+ *  - Linux: prepends ~/.local/bin (where the Copilot install script puts it).
+ */
+function refreshPath(): void {
+    if (process.platform === 'win32') {
+        try {
+            const newPath = child_process.execSync(
+                'powershell -NoProfile -Command "[System.Environment]::GetEnvironmentVariable(\'Path\',\'Machine\') + \';\' + [System.Environment]::GetEnvironmentVariable(\'Path\',\'User\')"',
+                { encoding: 'utf8' },
+            ).trim();
+            process.env['PATH'] = newPath;
+        } catch (err) {
+            console.log(`  Warning: Could not refresh PATH: ${err instanceof Error ? err.message : String(err)}`);
+        }
+    } else {
+        const home = process.env['HOME'] ?? '';
+        const localBin = `${home}/.local/bin`;
+        if (!process.env['PATH']?.includes(localBin)) {
+            process.env['PATH'] = `${localBin}:${process.env['PATH']}`;
+        }
+    }
+}
+
+/**
+ * Runs the GitHub Copilot CLI.
  *
- * The script is written to a temp file and executed via `-File` to avoid
- * command-line length limits and `-Command` parsing quirks.
- *
- * On Linux we use bash, which handles variable expansion correctly.
+ * The prompt is read in Node and passed as a direct OS-level argument via
+ * child_process.spawn with shell: false.  This avoids all shell quoting /
+ * metacharacter issues (cmd.exe and PowerShell both corrupt arguments
+ * containing double quotes).  Works because winget installs copilot as a
+ * native executable, not a .cmd shim.
  */
 export async function runCopilotCli(
     promptFilePath: string,
     model: string | undefined,
     workingDirectory: string,
-    timeoutMs: number
+    timeoutMs: number,
 ): Promise<void> {
-    const isWindows = process.platform === 'win32';
+    refreshPath();
 
-    let shellCmd: string;
-    let shellArgs: string[];
+    // Read prompt in Node — no shell involved
+    const promptContent = fs.readFileSync(promptFilePath, 'utf8');
 
-    if (isWindows) {
-        // Build a temp .ps1 script — avoids -Command parsing issues
-        const escapedPath = promptFilePath.replace(/'/g, "''");
-
-        const lines: string[] = [
-            // Refresh PATH from Windows registry so newly-installed binaries are found
-            `$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")`,
-            '',
-            '# Log copilot version for debugging',
-            'copilot --version',
-            '',
-            `$prompt = Get-Content -Path '${escapedPath}' -Raw`,
-            `Write-Host '========== START PROMPT =========='`,
-            `Write-Host $prompt`,
-            `Write-Host '========== END PROMPT =========='`,
-            '',
-            '# Build args as an array so splatting passes each element as a separate argument',
-            `$copilotArgs = @('-p', $prompt, '--allow-all-paths', '--allow-all-tools', '--deny-tool', 'shell(git push)')`,
-        ];
-
-        if (model) {
-            lines.push(`$copilotArgs += @('--model', '${model.replace(/'/g, "''")}')`);
-        }
-
-        lines.push(
-            '',
-            '& copilot @copilotArgs',
-            'exit $LASTEXITCODE',
-        );
-
-        const scriptContent = lines.join('\n');
-        const scriptPath = path.join(workingDirectory, '_copilot_run.ps1');
-        fs.writeFileSync(scriptPath, scriptContent, 'utf8');
-
-        shellCmd = 'pwsh';
-        shellArgs = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath];
-    } else {
-        // bash — variable expansion inside double quotes is safe
-        const escapedPath = promptFilePath.replace(/'/g, "'\\''");
-
-        const parts: string[] = [
-            // Ensure ~/.local/bin is on PATH (where Copilot CLI installs on Linux)
-            `export PATH="$HOME/.local/bin:$PATH"`,
-            // Log version for debugging
-            `copilot --version`,
-            `prompt=$(cat '${escapedPath}')`,
-            `echo '========== START PROMPT =========='`,
-            `echo "$prompt"`,
-            `echo '========== END PROMPT =========='`,
-        ];
-
-        // Build copilot command with properly quoted args
-        let copilotCmd = `copilot -p "$prompt" --allow-all-paths --allow-all-tools --deny-tool 'shell(git push)'`;
-        if (model) {
-            copilotCmd += ` --model '${model.replace(/'/g, "'\\''")}'`;
-        }
-        parts.push(copilotCmd);
-
-        const bashScript = parts.join('; ');
-        shellCmd = 'bash';
-        shellArgs = ['-c', bashScript];
+    // Each element becomes one OS-level argument — no shell interpretation
+    const args = [
+        '-p', promptContent,
+        '--allow-all-paths',
+        '--allow-all-tools',
+        '--deny-tool', 'shell(git push)',
+    ];
+    if (model) {
+        args.push('--model', model);
     }
 
-    console.log(`Running Copilot CLI with prompt from: ${promptFilePath}`);
-    console.log(`Platform: ${isWindows ? 'Windows (pwsh)' : 'Linux (bash)'}`);
-
     return new Promise((resolve, reject) => {
-        const proc = child_process.spawn(shellCmd, shellArgs, {
+        const proc = child_process.spawn('copilot', args, {
             shell: false,
             stdio: 'inherit',
             cwd: workingDirectory,
@@ -103,7 +69,7 @@ export async function runCopilotCli(
         });
 
         const timeoutId = setTimeout(() => {
-            console.log(`\nTimeout reached (${timeoutMs / 60000} minutes). Terminating Copilot process...`);
+            console.log(`\n  Timeout reached (${timeoutMs / 60000} min). Terminating...`);
             proc.kill('SIGTERM');
             reject(new Error(`Copilot review timed out after ${timeoutMs / 60000} minutes`));
         }, timeoutMs);
