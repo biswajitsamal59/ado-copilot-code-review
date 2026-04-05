@@ -335,8 +335,8 @@ export function formatPrDetailsText(
                     const trimmed = l.trim();
                     if (trimmed) lines.push(`    ${trimmed}`);
                 }
-                if (contentLines.length > 3) {
-                    lines.push(`    ... (${contentLines.length - 3} more lines)`);
+                if (displayLines.length < contentLines.length) {
+                    lines.push(`    ... (${contentLines.length - displayLines.length} more lines)`);
                 }
             }
 

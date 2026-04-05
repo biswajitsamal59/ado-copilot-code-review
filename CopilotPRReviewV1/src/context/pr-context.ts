@@ -12,7 +12,6 @@ import {
 } from '../ado-api/pull-requests';
 import { fetchWorkItems, formatWorkItemsText } from '../ado-api/work-items';
 import {
-    ChangeEntry,
     fetchIterationChanges,
     fetchIterationDiffs,
     chunkDiffs,
