@@ -1,7 +1,16 @@
 /**
  * Minimal unified diff generator using Myers diff algorithm (edit graph).
  * Produces standard unified diff format with @@ hunks.
+ *
+ * The O(ND) Myers algorithm stores a trace of v-arrays for backtracking.
+ * Memory is O(D * (N+M)) where D is edit distance. For mostly-similar files
+ * (small D), this is efficient. A hard cap on D prevents runaway memory/CPU
+ * when files are completely different.
  */
+
+// Max edit distance before falling back to a simple "delete all / add all" diff.
+// At D=1500, trace memory is ~1500 * 2*1500 * 8 bytes ≈ 36 MB — safe for build agents.
+const MAX_EDIT_DISTANCE = 1500;
 
 interface Edit {
     type: 'equal' | 'insert' | 'delete';
@@ -13,8 +22,11 @@ interface Edit {
 /**
  * Compute the shortest edit script between two arrays of lines using
  * the simple O(ND) Myers diff algorithm.
+ *
+ * Returns null if the edit distance exceeds MAX_EDIT_DISTANCE, signaling
+ * that the files are too different for a meaningful line-level diff.
  */
-function myersDiff(oldLines: string[], newLines: string[]): Edit[] {
+function myersDiff(oldLines: string[], newLines: string[]): Edit[] | null {
     const n = oldLines.length;
     const m = newLines.length;
     const max = n + m;
@@ -23,12 +35,14 @@ function myersDiff(oldLines: string[], newLines: string[]): Edit[] {
 
     // v[k] = furthest x reached on diagonal k
     const v: number[] = new Array(2 * max + 1).fill(0);
-    // trace[d] = snapshot of v at depth d
+    // trace[d] = snapshot of v at depth d (needed for backtracking)
     const trace: number[][] = [];
 
-    outer:
-    for (let d = 0; d <= max; d++) {
-        trace.push([...v]);
+    const dLimit = Math.min(max, MAX_EDIT_DISTANCE);
+
+    let found = false;
+    for (let d = 0; d <= dLimit; d++) {
+        trace.push(v.slice());
         for (let k = -d; k <= d; k += 2) {
             const idx = k + max;
             let x: number;
@@ -44,10 +58,15 @@ function myersDiff(oldLines: string[], newLines: string[]): Edit[] {
             }
             v[idx] = x;
             if (x >= n && y >= m) {
-                // Found shortest path — backtrack
-                break outer;
+                found = true;
+                break;
             }
         }
+        if (found) break;
+    }
+
+    if (!found) {
+        return null;
     }
 
     // Backtrack through trace to build edit list
@@ -188,6 +207,20 @@ export function computeUnifiedDiff(
     if (newLines.length > 0 && newLines[newLines.length - 1] === '') newLines.pop();
 
     const edits = myersDiff(oldLines, newLines);
+
+    // If edit distance exceeded the safety limit, fall back to a simple
+    // "show all old as deleted, all new as added" representation
+    if (edits === null) {
+        const result: string[] = [
+            `--- a/${normalizedPath}`,
+            `+++ b/${normalizedPath}`,
+            `@@ -1,${oldLines.length} +1,${newLines.length} @@`,
+            ...oldLines.map(l => `-${l}`),
+            ...newLines.map(l => `+${l}`),
+        ];
+        return result.join('\n');
+    }
+
     const hunks = buildHunks(edits, contextLines);
 
     if (hunks.length === 0) return '';
