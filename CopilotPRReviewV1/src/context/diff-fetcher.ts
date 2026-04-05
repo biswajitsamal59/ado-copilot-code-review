@@ -130,31 +130,21 @@ export async function fetchIterationDiffs(
     sourceCommitId: string,
     targetCommitId: string
 ): Promise<FileDiff[]> {
-    const results: FileDiff[] = new Array(changeEntries.length);
+    const results: FileDiff[] = [];
 
-    // Process in batches of CONCURRENCY
     for (let i = 0; i < changeEntries.length; i += CONCURRENCY) {
         const batch = changeEntries.slice(i, i + CONCURRENCY);
         const batchResults = await Promise.all(
-            batch.map(async (entry, batchIdx) => {
-                const idx = i + batchIdx;
+            batch.map(async (entry): Promise<FileDiff> => {
                 try {
                     const diffContent = await computeFileDiff(client, repo, entry, sourceCommitId, targetCommitId);
-                    return { idx, entry, diffContent };
+                    return { path: entry.item.path, changeType: entry.changeType, originalPath: entry.originalPath, diffContent };
                 } catch (err) {
-                    return { idx, entry, diffContent: `(Could not fetch diff: ${(err as Error).message})` };
+                    return { path: entry.item.path, changeType: entry.changeType, originalPath: entry.originalPath, diffContent: `(Could not fetch diff: ${(err as Error).message})` };
                 }
             })
         );
-
-        for (const { idx, entry, diffContent } of batchResults) {
-            results[idx] = {
-                path: entry.item.path,
-                changeType: entry.changeType,
-                originalPath: entry.originalPath,
-                diffContent,
-            };
-        }
+        results.push(...batchResults);
     }
 
     return results;
