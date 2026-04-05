@@ -105,6 +105,20 @@ async function run(): Promise<void> {
         const model = tl.getInput('model');
         const includeWorkItems = tl.getBoolInput('includeWorkItems', false);
 
+        // JIRA configuration (optional)
+        const jiraBaseUrl = tl.getInput('jiraBaseUrl') || '';
+        const jiraEmail = tl.getInput('jiraEmail') || '';
+        const jiraApiToken = tl.getInput('jiraApiToken') || '';
+
+        let workItemSource: 'jira' | 'none' = 'none';
+        if (includeWorkItems) {
+            if (jiraBaseUrl && jiraEmail && jiraApiToken) {
+                workItemSource = 'jira';
+            } else {
+                console.log('  Warning: includeWorkItems enabled but JIRA credentials incomplete — skipping.');
+            }
+        }
+
         console.log(`\nCopilot PR Review — ${project}/${repository} PR #${pullRequestId}`);
 
         // ── Set environment variables for agent scripts ────────────────────────
@@ -141,6 +155,10 @@ async function run(): Promise<void> {
 
         const context = await buildPrContext(client, repository, parseInt(pullRequestId, 10), workingDirectory, {
             includeWorkItems,
+            workItemProvider: {
+                source: workItemSource,
+                jira: workItemSource === 'jira' ? { baseUrl: jiraBaseUrl, email: jiraEmail, apiToken: jiraApiToken } : undefined,
+            },
         });
 
         // Expose iteration ID to agent scripts via environment

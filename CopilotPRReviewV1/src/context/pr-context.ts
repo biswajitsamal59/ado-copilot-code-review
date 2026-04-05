@@ -10,7 +10,8 @@ import {
     filterCopilotThreads,
     formatPrDetailsText,
 } from '../ado-api/pull-requests';
-import { fetchWorkItems, formatWorkItemsText } from '../ado-api/work-items';
+import { formatWorkItemsText } from '../work-items/types';
+import { WorkItemProviderConfig, createWorkItemProvider } from '../work-items/factory';
 import {
     fetchIterationChanges,
     fetchIterationDiffs,
@@ -20,6 +21,7 @@ import {
 
 export interface PrContextOptions {
     includeWorkItems: boolean;
+    workItemProvider: WorkItemProviderConfig;
 }
 
 export interface ReviewChunk {
@@ -158,18 +160,22 @@ export async function buildPrContext(
     let workItemDetailsPath: string | null = null;
 
     if (options.includeWorkItems) {
-        if (workItemIds.length > 0) {
-            try {
-                const workItemDetails = await fetchWorkItems(client, workItemIds);
-                const workItemDetailsText = formatWorkItemsText(workItemDetails);
-                workItemDetailsPath = path.join(outputDir, 'Work_Item_Details.txt');
-                fs.writeFileSync(workItemDetailsPath, workItemDetailsText, 'utf8');
-                console.log(`  Fetched ${workItemIds.length} linked work item(s).`);
-            } catch (err) {
-                console.log(`  Warning: Could not fetch work items — ${err instanceof Error ? err.message : String(err)}`);
+        const provider = createWorkItemProvider(options.workItemProvider);
+        if (provider) {
+            const ids = provider.extractIds(prDetails.description ?? '');
+            if (ids.length > 0) {
+                try {
+                    const details = await provider.fetchDetails(ids);
+                    const text = formatWorkItemsText(details);
+                    workItemDetailsPath = path.join(outputDir, 'Work_Item_Details.txt');
+                    fs.writeFileSync(workItemDetailsPath, text, 'utf8');
+                    console.log(`  Fetched ${details.length} linked work item(s).`);
+                } catch (err) {
+                    console.log(`  Warning: Could not fetch work items — ${err instanceof Error ? err.message : String(err)}`);
+                }
+            } else {
+                console.log('  No JIRA tickets found in PR description.');
             }
-        } else {
-            console.log('  No linked work items.');
         }
     }
 

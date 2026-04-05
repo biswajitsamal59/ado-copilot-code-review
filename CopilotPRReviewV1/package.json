@@ -1,6 +1,6 @@
 {
     "name": "copilot-pr-review-task",
-    "version": "1.0.9",
+    "version": "2.0.0",
     "description": "Azure DevOps extension for automated code reviews using agentic AI tools",
     "main": "index.js",
     "scripts": {

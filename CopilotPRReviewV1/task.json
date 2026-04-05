@@ -8,9 +8,9 @@
     "category": "Utility",
     "author": "Biswajit",
     "version": {
-        "Major": 1,
+        "Major": 2,
         "Minor": 0,
-        "Patch": 9
+        "Patch": 0
     },
     "instanceNameFormat": "Copilot PR Review",
     "minimumAgentVersion": "2.182.1",
@@ -147,8 +147,33 @@
             "type": "boolean",
             "label": "Include Work Item Details",
             "required": false,
-            "defaultValue": true,
-            "helpMarkDown": "When enabled, fetches full details (title, description, acceptance criteria, repro steps) for work items linked to the pull request and includes them as context for the Copilot review. Disable to reduce API calls and context window usage."
+            "defaultValue": false,
+            "helpMarkDown": "When enabled, extracts JIRA ticket IDs from the PR description and fetches their details (title, description, acceptance criteria) as additional context for the Copilot review. Requires the JIRA credentials below to be configured."
+        },
+        {
+            "name": "jiraBaseUrl",
+            "type": "string",
+            "label": "JIRA Base URL",
+            "required": false,
+            "defaultValue": "",
+            "helpMarkDown": "The base URL of your JIRA Cloud instance (e.g., 'https://myorg.atlassian.net'). Required if 'Include Work Item Details' is enabled."
+        },
+        {
+            "name": "jiraEmail",
+            "type": "string",
+            "label": "JIRA Email",
+            "required": false,
+            "defaultValue": "",
+            "helpMarkDown": "The email address for your JIRA Cloud API authentication. Required if 'Include Work Item Details' is enabled."
+        },
+        {
+            "name": "jiraApiToken",
+            "type": "string",
+            "label": "JIRA API Token",
+            "required": false,
+            "isSecret": true,
+            "defaultValue": "",
+            "helpMarkDown": "The API token for your JIRA Cloud account. Generate a personal API token in your JIRA account settings. Required if 'Include Work Item Details' is enabled."
         }
     ],
     "execution": {
