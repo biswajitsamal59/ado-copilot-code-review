@@ -65,90 +65,50 @@ export interface CopilotThread {
 
 // ─── API Fetchers ─────────────────────────────────────────────────────────────
 
-export async function fetchPrDetails(
-    client: AdoClient,
-    repo: string,
-    prId: number
-): Promise<PrDetails> {
-    return client.get<PrDetails>(
-        `git/repositories/${encodeURIComponent(repo)}/pullrequests/${prId}`
-    );
+function prPath(repo: string, prId: number): string {
+    return `git/repositories/${encodeURIComponent(repo)}/pullrequests/${prId}`;
 }
 
-export async function fetchPrWorkItemIds(
-    client: AdoClient,
-    repo: string,
-    prId: number
-): Promise<number[]> {
-    const result = await client.get<{ value: Array<{ id: number }> }>(
-        `git/repositories/${encodeURIComponent(repo)}/pullrequests/${prId}/workitems`
-    );
+export async function fetchPrDetails(client: AdoClient, repo: string, prId: number): Promise<PrDetails> {
+    return client.get<PrDetails>(prPath(repo, prId));
+}
+
+export async function fetchPrWorkItemIds(client: AdoClient, repo: string, prId: number): Promise<number[]> {
+    const result = await client.get<{ value: Array<{ id: number }> }>(`${prPath(repo, prId)}/workitems`);
     return (result.value ?? []).map(wi => wi.id);
 }
 
-export async function fetchPrIterations(
-    client: AdoClient,
-    repo: string,
-    prId: number
-): Promise<PrIteration[]> {
-    const result = await client.get<{ value: PrIteration[] }>(
-        `git/repositories/${encodeURIComponent(repo)}/pullrequests/${prId}/iterations`
-    );
+export async function fetchPrIterations(client: AdoClient, repo: string, prId: number): Promise<PrIteration[]> {
+    const result = await client.get<{ value: PrIteration[] }>(`${prPath(repo, prId)}/iterations`);
     return result.value ?? [];
 }
 
-export async function fetchPrThreads(
-    client: AdoClient,
-    repo: string,
-    prId: number
-): Promise<PrThread[]> {
-    const result = await client.get<{ value: PrThread[] }>(
-        `git/repositories/${encodeURIComponent(repo)}/pullrequests/${prId}/threads`
-    );
+export async function fetchPrThreads(client: AdoClient, repo: string, prId: number): Promise<PrThread[]> {
+    const result = await client.get<{ value: PrThread[] }>(`${prPath(repo, prId)}/threads`);
     return result.value ?? [];
 }
 
-export async function fetchPrCommits(
-    client: AdoClient,
-    repo: string,
-    prId: number
-): Promise<PrCommit[]> {
-    const result = await client.get<{ value: PrCommit[] }>(
-        `git/repositories/${encodeURIComponent(repo)}/pullrequests/${prId}/commits`
-    );
+export async function fetchPrCommits(client: AdoClient, repo: string, prId: number): Promise<PrCommit[]> {
+    const result = await client.get<{ value: PrCommit[] }>(`${prPath(repo, prId)}/commits`);
     return result.value ?? [];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+const VOTE_LABELS: Record<number, string> = {
+    10: 'Approved', 5: 'Approved with suggestions', 0: 'No vote',
+    [-5]: 'Waiting for author', [-10]: 'Rejected',
+};
+
+const THREAD_STATUS_LABELS: Record<string, string> = {
+    active: 'Active', fixed: 'Resolved', closed: 'Closed',
+    wontFix: "Won't Fix", pending: 'Pending', byDesign: 'By Design',
+};
+
 function formatDate(dateStr: string): string {
     if (!dateStr) return 'N/A';
-    try {
-        const d = new Date(dateStr);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        const hh = String(d.getHours()).padStart(2, '0');
-        const mi = String(d.getMinutes()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
-    } catch {
-        return dateStr;
-    }
-}
-
-function branchShortName(refName: string): string {
-    return (refName ?? '').replace(/^refs\/heads\//, '');
-}
-
-function voteLabel(vote: number): string {
-    switch (vote) {
-        case 10: return 'Approved';
-        case 5: return 'Approved with suggestions';
-        case 0: return 'No vote';
-        case -5: return 'Waiting for author';
-        case -10: return 'Rejected';
-        default: return 'Unknown';
-    }
+    try { return new Date(dateStr).toISOString().replace('T', ' ').substring(0, 16); }
+    catch { return dateStr; }
 }
 
 // ─── Copilot Thread Filtering ─────────────────────────────────────────────────
@@ -158,61 +118,29 @@ function voteLabel(vote: number): string {
  * Matches by Build Service author OR comment containing a known attribution tag.
  */
 export function filterCopilotThreads(threads: PrThread[]): CopilotThread[] {
-    const commentThreads = threads.filter(t =>
-        t.comments &&
-        t.comments.length > 0 &&
-        t.comments[0].commentType !== 'system'
-    );
+    return threads
+        .filter(t => t.comments?.length > 0 && t.comments[0].commentType !== 'system')
+        .filter(t => {
+            const first = t.comments[0];
+            const authorLower = `${first.author.displayName} ${first.author.uniqueName}`.toLowerCase();
+            return authorLower.includes('build service')
+                || (first.content ?? '').includes('[Generated by GitHub Copilot]')
+                || (first.content ?? '').includes('[Generated by Claude Code]');
+        })
+        .map(t => {
+            const first = t.comments[0];
+            const filePath = t.threadContext?.filePath ?? null;
+            const startLine = t.threadContext?.rightFileStart?.line ?? t.threadContext?.leftFileStart?.line ?? null;
+            const replies = t.comments.slice(1)
+                .filter(c => c.commentType !== 'system')
+                .map(c => ({ author: c.author.displayName, content: c.content, publishedDate: c.publishedDate }));
 
-    const copilotThreads = commentThreads.filter(t => {
-        const firstComment = t.comments[0];
-        const isBuildService =
-            (firstComment.author.displayName ?? '').toLowerCase().includes('build service') ||
-            (firstComment.author.uniqueName ?? '').toLowerCase().includes('build service');
-        const hasTag =
-            (firstComment.content ?? '').includes('[Generated by GitHub Copilot]') ||
-            (firstComment.content ?? '').includes('[Generated by Claude Code]');
-        return isBuildService || hasTag;
-    });
-
-    return copilotThreads.map(t => {
-        const firstComment = t.comments[0];
-        let filePath: string | null = null;
-        let startLine: number | null = null;
-
-        if (t.threadContext?.filePath) {
-            filePath = t.threadContext.filePath;
-            if (t.threadContext.rightFileStart?.line) {
-                startLine = t.threadContext.rightFileStart.line;
-            } else if (t.threadContext.leftFileStart?.line) {
-                startLine = t.threadContext.leftFileStart.line;
-            }
-        }
-
-        const replies = t.comments.slice(1)
-            .filter(c => c.commentType !== 'system')
-            .map(c => ({
-                author: c.author.displayName,
-                content: c.content,
-                publishedDate: c.publishedDate,
-            }));
-
-        return {
-            threadId: t.id,
-            status: t.status,
-            filePath,
-            startLine,
-            content: firstComment.content,
-            replies,
-        };
-    });
+            return { threadId: t.id, status: t.status, filePath, startLine, content: first.content, replies };
+        });
 }
 
 // ─── Text Formatting ──────────────────────────────────────────────────────────
 
-/**
- * Formats all PR data into the text format matching current PR_Details.txt output.
- */
 export function formatPrDetailsText(
     pr: PrDetails,
     threads: PrThread[],
@@ -221,29 +149,25 @@ export function formatPrDetailsText(
     copilotThreads: CopilotThread[],
     collectionUri: string
 ): string {
-    const sep80 = '='.repeat(80);
+    const sep = '='.repeat(80);
     const lines: string[] = [];
+    const branch = (ref: string) => (ref ?? '').replace(/^refs\/heads\//, '');
 
-    lines.push('');
-    lines.push(sep80);
-    lines.push('PULL REQUEST DETAILS');
-    lines.push(sep80);
+    lines.push('', sep, 'PULL REQUEST DETAILS', sep);
 
     // Basic Information
-    lines.push('');
-    lines.push('[Basic Information]');
+    lines.push('', '[Basic Information]');
     lines.push(`  ID:              #${pr.pullRequestId}`);
     lines.push(`  Title:           ${pr.title}`);
     lines.push(`  Status:          ${(pr.status ?? '').toUpperCase()}`);
     lines.push(`  Repository:      ${pr.repository?.name ?? ''}`);
-    lines.push(`  Source Branch:   ${branchShortName(pr.sourceRefName)}`);
-    lines.push(`  Target Branch:   ${branchShortName(pr.targetRefName)}`);
+    lines.push(`  Source Branch:   ${branch(pr.sourceRefName)}`);
+    lines.push(`  Target Branch:   ${branch(pr.targetRefName)}`);
     lines.push(`  Is Draft:        ${pr.isDraft}`);
     lines.push(`  Merge Status:    ${pr.mergeStatus ?? ''}`);
 
     // People
-    lines.push('');
-    lines.push('[People]');
+    lines.push('', '[People]');
     lines.push(`  Created By:      ${pr.createdBy?.displayName ?? ''} <${pr.createdBy?.uniqueName ?? ''}>`);
     lines.push(`  Created Date:    ${formatDate(pr.creationDate)}`);
     if (pr.closedBy) {
@@ -252,91 +176,64 @@ export function formatPrDetailsText(
     }
 
     // Reviewers
-    lines.push('');
-    lines.push('[Reviewers]');
-    if (pr.reviewers && pr.reviewers.length > 0) {
+    lines.push('', '[Reviewers]');
+    if (pr.reviewers?.length > 0) {
         for (const r of pr.reviewers) {
             const required = r.isRequired ? ' (Required)' : '';
-            lines.push(`  - ${r.displayName}${required} : ${voteLabel(r.vote)}`);
+            lines.push(`  - ${r.displayName}${required} : ${VOTE_LABELS[r.vote] ?? 'Unknown'}`);
         }
     } else {
         lines.push('  No reviewers assigned');
     }
 
     // Description
-    lines.push('');
-    lines.push('[Description]');
+    lines.push('', '[Description]');
     if (!pr.description) {
         lines.push('  (No description provided)');
     } else {
-        const desc = pr.description.replace(/\r\n/g, '\n');
-        for (const line of desc.split('\n')) {
+        for (const line of pr.description.replace(/\r\n/g, '\n').split('\n')) {
             lines.push(`  ${line}`);
         }
     }
 
     // Iterations
-    lines.push('');
-    lines.push('[Iterations/Updates]');
-    if (iterations && iterations.length > 0) {
+    lines.push('', '[Iterations/Updates]');
+    if (iterations?.length > 0) {
         lines.push(`  Total iterations: ${iterations.length}`);
-        const last = iterations[iterations.length - 1];
-        if (last) {
-            lines.push(`  Last updated:     ${formatDate(last.updatedDate)}`);
-        }
+        lines.push(`  Last updated:     ${formatDate(iterations[iterations.length - 1].updatedDate)}`);
     }
 
     // Comment Threads
-    lines.push('');
-    lines.push('[Comments/Threads]');
+    lines.push('', '[Comments/Threads]');
     const commentThreads = threads.filter(t =>
-        t.comments && t.comments.length > 0 && t.comments[0].commentType !== 'system'
+        t.comments?.length > 0 && t.comments[0].commentType !== 'system'
     );
-    const activeCount = commentThreads.filter(t => t.status === 'active').length;
-    const resolvedCount = commentThreads.filter(t => t.status === 'fixed' || t.status === 'closed').length;
-    lines.push(`  Active threads:   ${activeCount}`);
-    lines.push(`  Resolved threads: ${resolvedCount}`);
+    lines.push(`  Active threads:   ${commentThreads.filter(t => t.status === 'active').length}`);
+    lines.push(`  Resolved threads: ${commentThreads.filter(t => t.status === 'fixed' || t.status === 'closed').length}`);
 
     if (commentThreads.length > 0) {
-        lines.push('');
-        lines.push('  --- Top-Level Comments ---');
+        lines.push('', '  --- Top-Level Comments ---');
         for (const thread of commentThreads) {
             const first = thread.comments[0];
-            const statusLabel = (() => {
-                switch (thread.status) {
-                    case 'active': return 'Active';
-                    case 'fixed': return 'Resolved';
-                    case 'closed': return 'Closed';
-                    case 'wontFix': return "Won't Fix";
-                    case 'pending': return 'Pending';
-                    case 'byDesign': return 'By Design';
-                    default: return thread.status ?? '';
-                }
-            })();
-
             lines.push('');
-            lines.push(`  Thread #${thread.id} [${statusLabel}]`);
+            lines.push(`  Thread #${thread.id} [${THREAD_STATUS_LABELS[thread.status] ?? thread.status ?? ''}]`);
 
             if (thread.threadContext?.filePath) {
-                const lineInfo = thread.threadContext.rightFileStart
-                    ? ` (Line ${thread.threadContext.rightFileStart.line})`
-                    : thread.threadContext.leftFileStart
-                        ? ` (Line ${thread.threadContext.leftFileStart.line})`
-                        : '';
-                lines.push(`  File: ${thread.threadContext.filePath}${lineInfo}`);
+                const lineNum = thread.threadContext.rightFileStart?.line ?? thread.threadContext.leftFileStart?.line;
+                lines.push(`  File: ${thread.threadContext.filePath}${lineNum ? ` (Line ${lineNum})` : ''}`);
             }
 
             lines.push(`  Author: ${first.author.displayName} | ${formatDate(first.publishedDate)}`);
 
             if (first.content) {
                 const contentLines = first.content.split('\n');
-                const displayLines = contentLines.slice(0, 30);
-                for (const l of displayLines) {
+                const display = contentLines.slice(0, 30);
+                for (const l of display) {
                     const trimmed = l.trim();
                     if (trimmed) lines.push(`    ${trimmed}`);
                 }
-                if (displayLines.length < contentLines.length) {
-                    lines.push(`    ... (${contentLines.length - displayLines.length} more lines)`);
+                if (display.length < contentLines.length) {
+                    lines.push(`    ... (${contentLines.length - display.length} more lines)`);
                 }
             }
 
@@ -348,10 +245,9 @@ export function formatPrDetailsText(
     }
 
     // Linked Work Items
-    lines.push('');
-    lines.push('[Linked Work Items]');
+    const collectionBase = collectionUri.replace(/\/+$/, '');
+    lines.push('', '[Linked Work Items]');
     if (workItemIds.length > 0) {
-        const collectionBase = collectionUri.replace(/\/+$/, '');
         for (const id of workItemIds) {
             lines.push(`  - #${id}: ${collectionBase}/${pr.repository?.name}/_workitems/edit/${id}`);
         }
@@ -360,18 +256,13 @@ export function formatPrDetailsText(
     }
 
     // Links
-    lines.push('');
-    lines.push('[Links]');
-    const collectionBase = collectionUri.replace(/\/+$/, '');
+    lines.push('', '[Links]');
     lines.push(`  Web URL: ${collectionBase}/${pr.repository?.name ?? ''}/pullrequest/${pr.pullRequestId}`);
-
-    lines.push('');
-    lines.push(sep80);
+    lines.push('', sep);
 
     // Copilot Comment Threads JSON section
     if (copilotThreads.length > 0) {
-        lines.push('');
-        lines.push('=== COPILOT COMMENT THREADS (JSON) ===');
+        lines.push('', '=== COPILOT COMMENT THREADS (JSON) ===');
         lines.push(JSON.stringify(copilotThreads));
         lines.push('=== END COPILOT COMMENT THREADS ===');
     }
