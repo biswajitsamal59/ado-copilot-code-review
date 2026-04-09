@@ -192,7 +192,7 @@ async function run(): Promise<void> {
         } else {
             // Multiple chunks — run one agent per chunk
             console.log(`\n[3/3] Running code review (${chunks.length} chunks)...`);
-            const perChunkTimeout = Math.max(timeoutMs / chunks.length, 5 * 60 * 1000); // min 5 min per chunk
+            const perChunkTimeout = Math.max(timeoutMs / chunks.length, 10 * 60 * 1000); // min 10 min per chunk
 
             for (const chunk of chunks) {
                 const chunkNum = chunk.chunkIndex + 1;

@@ -5,7 +5,7 @@ const MAX_FILE_SIZE_BYTES = 250 * 1024; // 250 KB per file
 const MAX_DIFF_LINES = 5000;
 const CONCURRENCY = 5;
 const CHUNK_BYTE_BUDGET = 150 * 1024; // 150 KB per chunk (~37K tokens)
-const MAX_FILES_PER_CHUNK = 15;       // Cap file count — agent reads each file + checks impact
+const MAX_FILES_PER_CHUNK = 10;       // Cap file count — agent reads each file + checks impact
 
 export interface ChangeEntry {
     changeType: string;

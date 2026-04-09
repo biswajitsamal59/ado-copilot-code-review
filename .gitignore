@@ -37,3 +37,6 @@ CopilotPRReviewDevV1/*
 tmpclaude*
 CLAUDE.md
 .claude/settings.local.json
+Iteration_Details*
+Iteration_Id*
+test-pr-context.ts
