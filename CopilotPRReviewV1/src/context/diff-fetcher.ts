@@ -1,10 +1,11 @@
 import { AdoClient } from '../ado-api/client';
-import { computeUnifiedDiff, formatAsAddition, formatAsDeletion } from '../utils/diff';
+import { computeUnifiedDiff, formatWholeFile } from '../utils/diff';
 
 const MAX_FILE_SIZE_BYTES = 250 * 1024; // 250 KB per file
-const MAX_DIFF_LINES = 5000; // Skip Myers diff for files larger than this
-const CONCURRENCY = 5; // Parallel file fetches
+const MAX_DIFF_LINES = 5000;
+const CONCURRENCY = 5;
 const CHUNK_BYTE_BUDGET = 150 * 1024; // 150 KB per chunk (~37K tokens)
+const MAX_FILES_PER_CHUNK = 15;       // Cap file count — agent reads each file + checks impact
 
 export interface ChangeEntry {
     changeType: string;
@@ -19,14 +20,20 @@ export interface FileDiff {
     diffContent: string;
 }
 
-/**
- * Fetches the list of changed files for a PR iteration.
- */
+const CHANGE_LABELS: Record<string, string> = {
+    add: 'Added', edit: 'Modified', delete: 'Deleted',
+    rename: 'Renamed', copy: 'Copied',
+};
+
+function formatDate(dateStr: string): string {
+    if (!dateStr) return 'N/A';
+    try { return new Date(dateStr).toISOString().replace('T', ' ').substring(0, 16); }
+    catch { return dateStr; }
+}
+
+/** Fetches the list of changed files for a PR iteration. */
 export async function fetchIterationChanges(
-    client: AdoClient,
-    repo: string,
-    prId: number,
-    iterationId: number
+    client: AdoClient, repo: string, prId: number, iterationId: number
 ): Promise<ChangeEntry[]> {
     const result = await client.get<{ changeEntries: ChangeEntry[] }>(
         `git/repositories/${encodeURIComponent(repo)}/pullrequests/${prId}/iterations/${iterationId}/changes`
@@ -39,96 +46,61 @@ export async function fetchIterationChanges(
  * Returns null if the file is binary, too large, or cannot be fetched.
  */
 async function fetchFileContent(
-    client: AdoClient,
-    repo: string,
-    filePath: string,
-    commitId: string
+    client: AdoClient, repo: string, filePath: string, commitId: string
 ): Promise<string | null> {
     try {
-        const collectionUri = client.getCollectionUri();
-        const project = client.getProject();
-        const normalizedPath = filePath.replace(/\\/g, '/');
-        const encodedPath = encodeURIComponent(normalizedPath);
-        const url = `${collectionUri}/${project}/_apis/git/repositories/${encodeURIComponent(repo)}/items?path=${encodedPath}&versionDescriptor.version=${commitId}&versionDescriptor.versionType=commit&%24format=text&api-version=7.1`;
-
+        const normalizedPath = encodeURIComponent(filePath.replace(/\\/g, '/'));
+        const url = `${client.getCollectionUri()}/${client.getProject()}/_apis/git/repositories/${encodeURIComponent(repo)}/items?path=${normalizedPath}&versionDescriptor.version=${commitId}&versionDescriptor.versionType=commit&%24format=text&api-version=7.1`;
         const content = await client.getRawText(url);
 
-        // Skip binary files (check for null bytes)
-        if (content.includes('\0')) {
-            return null;
-        }
-
-        if (Buffer.byteLength(content, 'utf8') > MAX_FILE_SIZE_BYTES) {
-            return null; // Too large
-        }
-
+        if (content.includes('\0')) return null; // Binary
+        if (Buffer.byteLength(content, 'utf8') > MAX_FILE_SIZE_BYTES) return null;
         return content;
     } catch {
         return null;
     }
 }
 
-/**
- * Compute the diff for a single change entry.
- */
+/** Compute the diff for a single change entry. */
 async function computeFileDiff(
-    client: AdoClient,
-    repo: string,
-    entry: ChangeEntry,
-    sourceCommitId: string,
-    targetCommitId: string
+    client: AdoClient, repo: string, entry: ChangeEntry,
+    sourceCommitId: string, targetCommitId: string
 ): Promise<string> {
     const filePath = entry.item.path;
-    const changeType = entry.changeType;
 
-    if (changeType === 'add') {
+    if (entry.changeType === 'add') {
         const content = await fetchFileContent(client, repo, filePath, sourceCommitId);
-        if (content === null) return `(Binary file or file too large — content not shown)`;
-        return formatAsAddition(content, filePath);
+        return content === null ? '(Binary file or file too large — content not shown)' : formatWholeFile(content, filePath, 'add');
     }
 
-    if (changeType === 'delete') {
+    if (entry.changeType === 'delete') {
         const content = await fetchFileContent(client, repo, filePath, targetCommitId);
-        if (content === null) return `(Binary file or file too large — content not shown)`;
-        return formatAsDeletion(content, filePath);
+        return content === null ? '(Binary file or file too large — content not shown)' : formatWholeFile(content, filePath, 'delete');
     }
 
     // edit, rename, or other
-    const sourcePath = filePath;
-    const targetPath = entry.originalPath ?? filePath;
-
     const [newContent, oldContent] = await Promise.all([
-        fetchFileContent(client, repo, sourcePath, sourceCommitId),
-        fetchFileContent(client, repo, targetPath, targetCommitId),
+        fetchFileContent(client, repo, filePath, sourceCommitId),
+        fetchFileContent(client, repo, entry.originalPath ?? filePath, targetCommitId),
     ]);
 
     if (newContent === null || oldContent === null) {
-        return `(Binary file or file too large — content not shown)`;
+        return '(Binary file or file too large — content not shown)';
     }
 
-    // Guard against very large files where Myers diff would be slow
     const oldLineCount = oldContent.split('\n').length;
     const newLineCount = newContent.split('\n').length;
     if (oldLineCount > MAX_DIFF_LINES || newLineCount > MAX_DIFF_LINES) {
         return `(File too large for inline diff — ${oldLineCount}→${newLineCount} lines. Use git diff for full content.)`;
     }
 
-    const diff = computeUnifiedDiff(oldContent, newContent, filePath);
-    return diff || '(No text differences detected)';
+    return computeUnifiedDiff(oldContent, newContent, filePath) || '(No text differences detected)';
 }
 
-/**
- * Fetches diffs for all changed files in a PR iteration.
- * Uses bounded concurrency for parallel fetches. Returns ALL diffs with no cap.
- */
+/** Fetches diffs for all changed files with bounded concurrency. */
 export async function fetchIterationDiffs(
-    client: AdoClient,
-    repo: string,
-    prId: number,
-    iterationId: number,
-    changeEntries: ChangeEntry[],
-    sourceCommitId: string,
-    targetCommitId: string
+    client: AdoClient, repo: string, prId: number, iterationId: number,
+    changeEntries: ChangeEntry[], sourceCommitId: string, targetCommitId: string
 ): Promise<FileDiff[]> {
     const results: FileDiff[] = [];
 
@@ -150,11 +122,12 @@ export async function fetchIterationDiffs(
     return results;
 }
 
-/**
- * Groups file diffs into chunks that each fit within the byte budget.
- * Each chunk is a self-contained set of FileDiff entries for one agent run.
- */
-export function chunkDiffs(diffs: FileDiff[], byteBudget: number = CHUNK_BYTE_BUDGET): FileDiff[][] {
+/** Groups file diffs into chunks respecting both byte budget and file count cap. */
+export function chunkDiffs(
+    diffs: FileDiff[],
+    byteBudget: number = CHUNK_BYTE_BUDGET,
+    maxFiles: number = MAX_FILES_PER_CHUNK
+): FileDiff[][] {
     if (diffs.length === 0) return [[]];
 
     const chunks: FileDiff[][] = [];
@@ -164,8 +137,7 @@ export function chunkDiffs(diffs: FileDiff[], byteBudget: number = CHUNK_BYTE_BU
     for (const diff of diffs) {
         const diffBytes = Buffer.byteLength(diff.diffContent, 'utf8');
 
-        // If adding this diff exceeds the budget AND the chunk isn't empty, start a new chunk
-        if (currentBytes + diffBytes > byteBudget && currentChunk.length > 0) {
+        if (currentChunk.length > 0 && (currentBytes + diffBytes > byteBudget || currentChunk.length >= maxFiles)) {
             chunks.push(currentChunk);
             currentChunk = [];
             currentBytes = 0;
@@ -175,18 +147,12 @@ export function chunkDiffs(diffs: FileDiff[], byteBudget: number = CHUNK_BYTE_BU
         currentBytes += diffBytes;
     }
 
-    // Push the last chunk
-    if (currentChunk.length > 0) {
-        chunks.push(currentChunk);
-    }
-
+    if (currentChunk.length > 0) chunks.push(currentChunk);
     return chunks;
 }
 
-/**
- * Formats iteration data + diffs into the text matching current Iteration_Details.txt output,
- * but now includes actual diff content under each file.
- */
+// ─── Text Formatting ──────────────────────────────────────────────────────────
+
 export interface ChunkInfo {
     chunkIndex: number;
     totalChunks: number;
@@ -205,46 +171,20 @@ export function formatIterationDetailsText(
     prId: number,
     chunkInfo?: ChunkInfo
 ): string {
-    const sep80 = '='.repeat(80);
+    const sep = '='.repeat(80);
     const lines: string[] = [];
 
-    const formatDate = (dateStr: string) => {
-        if (!dateStr) return 'N/A';
-        try {
-            const d = new Date(dateStr);
-            return d.toISOString().replace('T', ' ').replace(/\.\d+Z$/, '');
-        } catch { return dateStr; }
-    };
-
-    const changeTypeLabel = (ct: string) => {
-        switch (ct) {
-            case 'add': return 'Added';
-            case 'edit': return 'Modified';
-            case 'delete': return 'Deleted';
-            case 'rename': return 'Renamed';
-            case 'copy': return 'Copied';
-            default: return ct;
-        }
-    };
-
-    lines.push('');
-    lines.push(sep80);
     const chunkLabel = chunkInfo ? ` (CHUNK ${chunkInfo.chunkIndex}/${chunkInfo.totalChunks})` : '';
-    lines.push(`PULL REQUEST CHANGES - ITERATION #${iterationId}${chunkLabel}`);
-    lines.push(sep80);
+    lines.push('', sep, `PULL REQUEST CHANGES - ITERATION #${iterationId}${chunkLabel}`, sep);
 
     // Iteration Details
-    lines.push('');
-    lines.push('[Iteration Details]');
+    lines.push('', '[Iteration Details]');
     lines.push(`  Iteration ID:     #${iterationId}`);
     lines.push(`  Created:          ${formatDate(iteration.createdDate)}`);
     lines.push(`  Updated:          ${formatDate(iteration.updatedDate)}`);
-    if (iteration.sourceRefCommit) {
-        lines.push(`  Source Commit:    ${iteration.sourceRefCommit.commitId.substring(0, 8)}`);
-    }
-    if (iteration.targetRefCommit) {
-        lines.push(`  Target Commit:    ${iteration.targetRefCommit.commitId.substring(0, 8)}`);
-    }
+    if (iteration.sourceRefCommit) lines.push(`  Source Commit:    ${iteration.sourceRefCommit.commitId.substring(0, 8)}`);
+    if (iteration.targetRefCommit) lines.push(`  Target Commit:    ${iteration.targetRefCommit.commitId.substring(0, 8)}`);
+
     if (chunkInfo) {
         lines.push('');
         lines.push(`  ** Review Chunk:  ${chunkInfo.chunkIndex} of ${chunkInfo.totalChunks} **`);
@@ -253,16 +193,13 @@ export function formatIterationDetailsText(
     }
 
     // Commits
-    lines.push('');
-    lines.push('[Commits in this PR]');
+    lines.push('', '[Commits in this PR]');
     if (commits.length > 0) {
-        lines.push(`  Total commits: ${commits.length}`);
-        lines.push('');
+        lines.push(`  Total commits: ${commits.length}`, '');
         for (const commit of commits) {
-            const shortId = commit.commitId.substring(0, 8);
             let msg = (commit.comment ?? '').split('\n')[0];
             if (msg.length > 60) msg = msg.substring(0, 57) + '...';
-            lines.push(`  ${shortId} - ${msg}`);
+            lines.push(`  ${commit.commitId.substring(0, 8)} - ${msg}`);
             lines.push(`           Author: ${commit.author?.name ?? ''} | ${formatDate(commit.author?.date ?? '')}`);
         }
     } else {
@@ -270,35 +207,30 @@ export function formatIterationDetailsText(
     }
 
     // Changed Files with Diffs
-    lines.push('');
-    lines.push('[Changed Files]');
+    lines.push('', '[Changed Files]');
     const nonTruncated = changeEntries.filter(c => c.changeType !== 'truncated');
+
     if (nonTruncated.length > 0) {
-        const addedCount = nonTruncated.filter(c => c.changeType === 'add').length;
-        const modifiedCount = nonTruncated.filter(c => c.changeType === 'edit').length;
-        const deletedCount = nonTruncated.filter(c => c.changeType === 'delete').length;
-        const otherCount = nonTruncated.length - addedCount - modifiedCount - deletedCount;
+        const counts = { add: 0, edit: 0, delete: 0, other: 0 };
+        for (const c of nonTruncated) {
+            if (c.changeType in counts) (counts as Record<string, number>)[c.changeType]++;
+            else counts.other++;
+        }
 
         lines.push(`  Total files changed: ${nonTruncated.length}`);
-        let summaryLine = `  +${addedCount} added | ~${modifiedCount} modified | -${deletedCount} deleted`;
-        if (otherCount > 0) summaryLine += ` | ${otherCount} other`;
-        lines.push(summaryLine);
+        let summary = `  +${counts.add} added | ~${counts.edit} modified | -${counts.delete} deleted`;
+        if (counts.other > 0) summary += ` | ${counts.other} other`;
+        lines.push(summary);
 
-        // Build a map of path -> diff
-        const diffMap = new Map<string, string>();
-        for (const d of diffs) {
-            diffMap.set(d.path, d.diffContent);
-        }
+        const diffMap = new Map(diffs.map(d => [d.path, d.diffContent]));
 
         for (const change of nonTruncated) {
             lines.push('');
-            const label = changeTypeLabel(change.changeType);
-            lines.push(`  [${label}] ${change.item.path}`);
+            lines.push(`  [${CHANGE_LABELS[change.changeType] ?? change.changeType}] ${change.item.path}`);
             if (change.changeType === 'rename' && change.originalPath) {
                 lines.push(`         (from: ${change.originalPath})`);
             }
 
-            // Include diff content
             const diffContent = diffMap.get(change.item.path);
             if (diffContent) {
                 lines.push('');
@@ -308,21 +240,16 @@ export function formatIterationDetailsText(
             }
         }
 
-        // Truncation notice
         const truncated = diffs.find(d => d.changeType === 'truncated');
         if (truncated) {
-            lines.push('');
-            lines.push(`  ${truncated.diffContent}`);
+            lines.push('', `  ${truncated.diffContent}`);
         }
     } else {
         lines.push('  No file changes found in this iteration.');
     }
 
-    lines.push('');
-    lines.push(sep80);
-
-    const collectionBase = collectionUri.replace(/\/+$/, '');
-    lines.push(`\nView PR: ${collectionBase}/${project}/_git/${repo}/pullrequest/${prId}`);
+    lines.push('', sep);
+    lines.push(`\nView PR: ${collectionUri.replace(/\/+$/, '')}/${project}/_git/${repo}/pullrequest/${prId}`);
 
     return lines.join('\n');
 }

@@ -1,15 +1,8 @@
 /**
- * Minimal unified diff generator using Myers diff algorithm (edit graph).
- * Produces standard unified diff format with @@ hunks.
- *
- * The O(ND) Myers algorithm stores a trace of v-arrays for backtracking.
- * Memory is O(D * (N+M)) where D is edit distance. For mostly-similar files
- * (small D), this is efficient. A hard cap on D prevents runaway memory/CPU
- * when files are completely different.
+ * Minimal unified diff generator using Myers diff algorithm.
+ * A hard cap on edit distance prevents runaway memory/CPU when files are completely different.
  */
 
-// Max edit distance before falling back to a simple "delete all / add all" diff.
-// At D=1500, trace memory is ~1500 * 2*1500 * 8 bytes ≈ 36 MB — safe for build agents.
 const MAX_EDIT_DISTANCE = 1500;
 
 interface Edit {
@@ -20,11 +13,8 @@ interface Edit {
 }
 
 /**
- * Compute the shortest edit script between two arrays of lines using
- * the simple O(ND) Myers diff algorithm.
- *
- * Returns null if the edit distance exceeds MAX_EDIT_DISTANCE, signaling
- * that the files are too different for a meaningful line-level diff.
+ * Shortest edit script via O(ND) Myers diff.
+ * Returns null if edit distance exceeds MAX_EDIT_DISTANCE.
  */
 function myersDiff(oldLines: string[], newLines: string[]): Edit[] | null {
     const n = oldLines.length;
@@ -33,11 +23,8 @@ function myersDiff(oldLines: string[], newLines: string[]): Edit[] | null {
 
     if (max === 0) return [];
 
-    // v[k] = furthest x reached on diagonal k
     const v: number[] = new Array(2 * max + 1).fill(0);
-    // trace[d] = snapshot of v at depth d (needed for backtracking)
     const trace: number[][] = [];
-
     const dLimit = Math.min(max, MAX_EDIT_DISTANCE);
 
     let found = false;
@@ -47,9 +34,9 @@ function myersDiff(oldLines: string[], newLines: string[]): Edit[] | null {
             const idx = k + max;
             let x: number;
             if (k === -d || (k !== d && v[idx - 1] < v[idx + 1])) {
-                x = v[idx + 1]; // move down
+                x = v[idx + 1];
             } else {
-                x = v[idx - 1] + 1; // move right
+                x = v[idx - 1] + 1;
             }
             let y = x - k;
             while (x < n && y < m && oldLines[x] === newLines[y]) {
@@ -65,9 +52,7 @@ function myersDiff(oldLines: string[], newLines: string[]): Edit[] | null {
         if (found) break;
     }
 
-    if (!found) {
-        return null;
-    }
+    if (!found) return null;
 
     // Backtrack through trace to build edit list
     const edits: Edit[] = [];
@@ -81,15 +66,14 @@ function myersDiff(oldLines: string[], newLines: string[]): Edit[] | null {
 
         let prevK: number;
         if (k === -d || (k !== d && vd[idx - 1] < vd[idx + 1])) {
-            prevK = k + 1; // came from down
+            prevK = k + 1;
         } else {
-            prevK = k - 1; // came from right
+            prevK = k - 1;
         }
 
         const prevX = vd[prevK + max];
         const prevY = prevX - prevK;
 
-        // Snake: equal lines
         while (x > prevX && y > prevY) {
             x--;
             y--;
@@ -98,11 +82,9 @@ function myersDiff(oldLines: string[], newLines: string[]): Edit[] | null {
 
         if (d > 0) {
             if (x === prevX) {
-                // Insert from new
                 y--;
                 edits.unshift({ type: 'insert', newLine: y, content: newLines[y] });
             } else {
-                // Delete from old
                 x--;
                 edits.unshift({ type: 'delete', oldLine: x, content: oldLines[x] });
             }
@@ -112,9 +94,7 @@ function myersDiff(oldLines: string[], newLines: string[]): Edit[] | null {
     return edits;
 }
 
-/**
- * Group edits into hunks with context lines.
- */
+/** Group edits into hunks with context lines. */
 function buildHunks(edits: Edit[], contextLines: number): Array<{
     oldStart: number; oldCount: number;
     newStart: number; newCount: number;
@@ -127,7 +107,6 @@ function buildHunks(edits: Edit[], contextLines: number): Array<{
 
     if (changed.length === 0) return [];
 
-    // Group changed edit indices into ranges with context
     const ranges: Array<[number, number]> = [];
     let start = Math.max(0, changed[0] - contextLines);
     let end = Math.min(edits.length - 1, changed[0] + contextLines);
@@ -181,15 +160,17 @@ function buildHunks(edits: Edit[], contextLines: number): Array<{
     return hunks;
 }
 
-/**
- * Compute a unified diff between two file contents.
- *
- * @param oldText  Original file content
- * @param newText  New file content
- * @param filePath File path for the diff header (e.g. '/src/App.cs')
- * @param contextLines Number of context lines around changes (default 3)
- * @returns Unified diff string, or empty string if files are identical
- */
+function normalizePath(filePath: string): string {
+    return filePath.replace(/\\/g, '/').replace(/^\//, '');
+}
+
+function splitLines(text: string): string[] {
+    const lines = text.split('\n');
+    if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+    return lines;
+}
+
+/** Compute a unified diff between two file contents. */
 export function computeUnifiedDiff(
     oldText: string,
     newText: string,
@@ -198,78 +179,41 @@ export function computeUnifiedDiff(
 ): string {
     if (oldText === newText) return '';
 
-    const normalizedPath = filePath.replace(/\\/g, '/').replace(/^\//, '');
-    const oldLines = oldText.split('\n');
-    const newLines = newText.split('\n');
-
-    // Remove trailing empty line artifact from split if file ends with \n
-    if (oldLines.length > 0 && oldLines[oldLines.length - 1] === '') oldLines.pop();
-    if (newLines.length > 0 && newLines[newLines.length - 1] === '') newLines.pop();
-
+    const p = normalizePath(filePath);
+    const oldLines = splitLines(oldText);
+    const newLines = splitLines(newText);
     const edits = myersDiff(oldLines, newLines);
 
-    // If edit distance exceeded the safety limit, fall back to a simple
-    // "show all old as deleted, all new as added" representation
+    // Fallback for files too different for meaningful line-level diff
     if (edits === null) {
-        const result: string[] = [
-            `--- a/${normalizedPath}`,
-            `+++ b/${normalizedPath}`,
+        return [
+            `--- a/${p}`, `+++ b/${p}`,
             `@@ -1,${oldLines.length} +1,${newLines.length} @@`,
             ...oldLines.map(l => `-${l}`),
             ...newLines.map(l => `+${l}`),
-        ];
-        return result.join('\n');
+        ].join('\n');
     }
 
     const hunks = buildHunks(edits, contextLines);
-
     if (hunks.length === 0) return '';
 
-    const result: string[] = [
-        `--- a/${normalizedPath}`,
-        `+++ b/${normalizedPath}`,
-    ];
-
+    const result = [`--- a/${p}`, `+++ b/${p}`];
     for (const hunk of hunks) {
         const oldRange = hunk.oldCount === 1 ? `${hunk.oldStart}` : `${hunk.oldStart},${hunk.oldCount}`;
         const newRange = hunk.newCount === 1 ? `${hunk.newStart}` : `${hunk.newStart},${hunk.newCount}`;
         result.push(`@@ -${oldRange} +${newRange} @@`);
         result.push(...hunk.lines);
     }
-
     return result.join('\n');
 }
 
-/**
- * Format all lines of a file as additions (for new files).
- */
-export function formatAsAddition(content: string, filePath: string): string {
-    const normalizedPath = filePath.replace(/\\/g, '/').replace(/^\//, '');
-    const lines = content.split('\n');
-    if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
-
-    const result: string[] = [
-        `--- /dev/null`,
-        `+++ b/${normalizedPath}`,
-        `@@ -0,0 +1,${lines.length} @@`,
-        ...lines.map(l => `+${l}`),
-    ];
-    return result.join('\n');
-}
-
-/**
- * Format all lines of a file as deletions (for deleted files).
- */
-export function formatAsDeletion(content: string, filePath: string): string {
-    const normalizedPath = filePath.replace(/\\/g, '/').replace(/^\//, '');
-    const lines = content.split('\n');
-    if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
-
-    const result: string[] = [
-        `--- a/${normalizedPath}`,
-        `+++ /dev/null`,
-        `@@ -1,${lines.length} +0,0 @@`,
-        ...lines.map(l => `-${l}`),
-    ];
-    return result.join('\n');
+/** Format an entire file as additions (new file) or deletions (deleted file). */
+export function formatWholeFile(content: string, filePath: string, mode: 'add' | 'delete'): string {
+    const p = normalizePath(filePath);
+    const lines = splitLines(content);
+    const prefix = mode === 'add' ? '+' : '-';
+    const oldFile = mode === 'add' ? '/dev/null' : `a/${p}`;
+    const newFile = mode === 'add' ? `b/${p}` : '/dev/null';
+    const range = mode === 'add' ? `@@ -0,0 +1,${lines.length} @@` : `@@ -1,${lines.length} +0,0 @@`;
+    return [`--- ${oldFile}`, `+++ ${newFile}`, range, ...lines.map(l => `${prefix}${l}`)].join('\n');
 }

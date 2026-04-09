@@ -33,11 +33,7 @@ export interface ReviewChunk {
 
 export interface PrContextResult {
     iterationId: number;
-    prDetailsPath: string;
     chunks: ReviewChunk[];
-    workItemDetailsPath: string | null;
-    workItemIdsPath: string;
-    iterationIdPath: string;
 }
 
 /**
@@ -63,22 +59,16 @@ export async function buildPrContext(
     const collectionUri = client.getCollectionUri();
     const copilotThreads = filterCopilotThreads(threads);
 
-    const prDetailsText = formatPrDetailsText(
-        prDetails,
-        threads,
-        iterations,
-        workItemIds,
-        copilotThreads,
-        collectionUri
+    // Write PR details
+    fs.writeFileSync(
+        path.join(outputDir, 'PR_Details.txt'),
+        formatPrDetailsText(prDetails, threads, iterations, workItemIds, copilotThreads, collectionUri),
+        'utf8'
     );
 
-    const prDetailsPath = path.join(outputDir, 'PR_Details.txt');
-    fs.writeFileSync(prDetailsPath, prDetailsText, 'utf8');
-
-    // Write work item IDs file
-    const workItemIdsPath = path.join(outputDir, 'Work_Item_Ids.txt');
+    // Write work item IDs
     if (workItemIds.length > 0) {
-        fs.writeFileSync(workItemIdsPath, workItemIds.join(','), 'utf8');
+        fs.writeFileSync(path.join(outputDir, 'Work_Item_Ids.txt'), workItemIds.join(','), 'utf8');
     }
 
     // ── Iteration Details ────────────────────────────────────────────────────
@@ -87,7 +77,6 @@ export async function buildPrContext(
         throw new Error(`No iterations found for pull request #${prId}`);
     }
 
-    // Use the latest iteration
     const latestIteration = iterations.reduce((a, b) => (a.id > b.id ? a : b));
     const iterationId = latestIteration.id;
 
@@ -98,41 +87,25 @@ export async function buildPrContext(
 
     console.log(`  Fetching diffs for ${changeEntries.length} changed file(s)...`);
     const allDiffs = await fetchIterationDiffs(
-        client,
-        repo,
-        prId,
-        iterationId,
-        changeEntries,
+        client, repo, prId, iterationId, changeEntries,
         latestIteration.sourceRefCommit?.commitId ?? '',
         latestIteration.targetRefCommit?.commitId ?? ''
     );
 
-    // Split diffs into chunks that fit the context budget
     const diffChunks = chunkDiffs(allDiffs);
-
     const chunks: ReviewChunk[] = [];
 
     for (let i = 0; i < diffChunks.length; i++) {
         const chunkDiffs = diffChunks[i];
-
-        // Build the change entries subset matching this chunk's files
         const chunkPaths = new Set(chunkDiffs.map(d => d.path));
         const chunkChangeEntries = changeEntries.filter(c => chunkPaths.has(c.item.path));
 
         const iterationDetailsText = formatIterationDetailsText(
-            iterationId,
-            latestIteration,
-            commits,
-            chunkChangeEntries,
-            chunkDiffs,
-            collectionUri,
-            client.getProject(),
-            repo,
-            prId,
+            iterationId, latestIteration, commits, chunkChangeEntries, chunkDiffs,
+            collectionUri, client.getProject(), repo, prId,
             diffChunks.length > 1 ? { chunkIndex: i + 1, totalChunks: diffChunks.length, totalFiles: allDiffs.length } : undefined
         );
 
-        // Single chunk: Iteration_Details.txt, multiple: Iteration_Details_Chunk1.txt etc.
         const fileName = diffChunks.length === 1
             ? 'Iteration_Details.txt'
             : `Iteration_Details_Chunk${i + 1}.txt`;
@@ -153,11 +126,9 @@ export async function buildPrContext(
         console.log(`  ${allDiffs.length} file(s) split into ${diffChunks.length} review chunks.`);
     }
 
-    const iterationIdPath = path.join(outputDir, 'Iteration_Id.txt');
-    fs.writeFileSync(iterationIdPath, String(iterationId), 'utf8');
+    fs.writeFileSync(path.join(outputDir, 'Iteration_Id.txt'), String(iterationId), 'utf8');
 
     // ── Work Item Details (optional) ─────────────────────────────────────────
-    let workItemDetailsPath: string | null = null;
 
     if (options.includeWorkItems) {
         const provider = createWorkItemProvider(options.workItemProvider);
@@ -166,9 +137,7 @@ export async function buildPrContext(
             if (ids.length > 0) {
                 try {
                     const details = await provider.fetchDetails(ids);
-                    const text = formatWorkItemsText(details);
-                    workItemDetailsPath = path.join(outputDir, 'Work_Item_Details.txt');
-                    fs.writeFileSync(workItemDetailsPath, text, 'utf8');
+                    fs.writeFileSync(path.join(outputDir, 'Work_Item_Details.txt'), formatWorkItemsText(details), 'utf8');
                     console.log(`  Fetched ${details.length} linked work item(s).`);
                 } catch (err) {
                     console.log(`  Warning: Could not fetch work items — ${err instanceof Error ? err.message : String(err)}`);
@@ -179,12 +148,5 @@ export async function buildPrContext(
         }
     }
 
-    return {
-        iterationId,
-        prDetailsPath,
-        chunks,
-        workItemDetailsPath,
-        workItemIdsPath,
-        iterationIdPath,
-    };
+    return { iterationId, chunks };
 }
